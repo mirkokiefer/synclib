@@ -1,0 +1,29 @@
+{
+  "name": "NodeStore",
+  "description": "A distributed document store",
+  "version": "0.0.1",
+  "author": "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)",
+  "contributors": [
+    "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)"
+  ],
+  "dependencies": {
+    "async": "*",
+    "underscore": "*",
+    "livelyutils": "*"
+  },
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "scripts": {
+    "test": "./node_modules/.bin/mocha"
+  },
+  "main": "lib/store",
+  "directories": {
+    "lib": "lib",
+    "example": "examples",
+    "test": "test"
+  },
+  "engines": {
+    "node": ">=0.9"
+  }
+}
