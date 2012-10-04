@@ -24,11 +24,7 @@ describe 'store', () ->
         'b/c': 3
         'b/d': 4
       testStore1.commit data, () ->
-        testStore1.read 'a', (err, a) ->
-          assert.equal a, data.a
-          testStore1.read 'b/c', (err, c) ->
-            assert.equal c, data['b/c']
-            done()
+        testData testStore1, data, done
   describe 'subsequent commit', () ->
     it 'should create a child commit', (done) ->
       data =
