@@ -1,19 +1,15 @@
 
 assert = require 'assert'
 Store = require('../lib/store');
-FileStore = require('../lib/backend').FileStore
+MemoryStore = require('../lib/backend').MemoryStore
 async = require 'async'
 _ = require 'underscore'
 
 
 
 home = process.env.HOME
-fs1 = new FileStore home+'/test-store1'
-fs2 = new FileStore home+'/test-store2'
-testStore1 = new Store fs1
-testStore2 = new Store fs2
-
-after (done) -> async.forEach [fs1, fs2], ((each, cb) -> each.delete cb), done
+testStore1 = new Store (new MemoryStore())
+testStore2 = new Store (new MemoryStore())
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
