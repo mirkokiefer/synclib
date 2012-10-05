@@ -51,11 +51,13 @@ class Store
     obj = this
     parsedData = for path, value of data
       path: path.split('/').reverse(), data: value
-    commit @head, @backend, parsedData, (err, newHead) ->
+    ref = if ref then ref else @head
+    commit ref, @backend, parsedData, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
   read: ({path, ref}, cb) ->
     path = path.split('/').reverse()
-    read @head, @backend, path, cb
+    ref = if ref then ref else @head
+    read ref, @backend, path, cb
 
 module.exports = Store

@@ -41,5 +41,14 @@ describe 'store', () ->
           testStore1.read path: 'b/d', (err, d) ->
             assert.equal d, 4
             done()
-    
-
+    it 'should create a forking commit', (done) ->
+      head1 = testStore1.head
+      data = 'b/e': 3
+      testStore1.commit data: data, (err, head2) ->
+        testStore1.read path: 'b/e', ref: head1, (err, eHead1) ->
+          assert.equal eHead1, 2
+          testStore1.read path: 'b/e', ref: head2, (err, eHead2) ->
+            assert.equal eHead2, 3
+            testStore1.read path: 'b/e', (err, eHead2) ->
+              assert.equal eHead2, 3
+              done()
