@@ -36,6 +36,7 @@ describe 'store', () ->
         'a': 3
         'b/c': 4
         'b/e': 2
+        'b/f/g': 7
       testStore1.commit data: data, () ->
         testData testStore1, data, () ->
           testStore1.read path: 'b/d', (err, d) ->
