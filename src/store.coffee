@@ -47,14 +47,14 @@ read = (treeHash, backend, path, cb) ->
 
 class Store
   constructor: (@backend, @head) ->
-  commit: (data, cb) ->
+  commit: ({data, ref}, cb) ->
     obj = this
     parsedData = for path, value of data
       path: path.split('/').reverse(), data: value
     commit @head, @backend, parsedData, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
-  read: (path, cb) ->
+  read: ({path, ref}, cb) ->
     path = path.split('/').reverse()
     read @head, @backend, path, cb
 

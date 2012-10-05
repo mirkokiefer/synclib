@@ -17,28 +17,29 @@ after (done) -> async.forEach [fs1, fs2], ((each, cb) -> each.delete cb), done
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
-    store.read each, (err, value) ->
+    store.read path: each, (err, value) ->
       assert.equal value, data[each]
       cb()
   async.forEach _.keys(data), testEach, cb
 
 describe 'store', () ->
-  describe 'first commit', () ->
+  describe 'commit', () ->
     it 'should commit and read objects', (done) ->
       data =
         'a': 1
         'b/c': 3
         'b/d': 4
-      testStore1.commit data, () ->
+      testStore1.commit data: data, () ->
         testData testStore1, data, done
-  describe 'subsequent commit', () ->
     it 'should create a child commit', (done) ->
       data =
         'a': 3
         'b/c': 4
         'b/e': 2
-      testStore1.commit data, () ->
+      testStore1.commit data: data, () ->
         testData testStore1, data, () ->
-          testStore1.read 'b/d', (err, d) ->
+          testStore1.read path: 'b/d', (err, d) ->
             assert.equal d, 4
             done()
+    
+
