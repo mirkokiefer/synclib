@@ -2,6 +2,9 @@
 fs = require 'fs'
 resolvePath = (require 'path').resolve
 crypto = require 'crypto'
+exec = require('child_process').exec
+
+removeDir = (dir, cb) -> exec 'rm -r -f ' + dir, cb
 
 hash = (data) ->
   shasum = crypto.createHash 'sha1'
@@ -36,6 +39,7 @@ class FileStore extends GenericStore
   remove: (path, cb) -> fs.unlink (@resolveFile path), cb
   resolveFile: (path) -> resolvePath @rootPath, path + '.txt'
   resolveDir: (path) -> resolvePath @rootPath, path
+  delete: (cb) -> removeDir @rootPath, cb
 
 class MemoryStore extends GenericStore
   constructor: () -> @data = {}

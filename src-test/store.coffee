@@ -5,9 +5,15 @@ FileStore = require('../lib/backend').FileStore
 async = require 'async'
 _ = require 'underscore'
 
+
+
 home = process.env.HOME
-testStore1 = new Store (new FileStore home+'/test-store1')
-testStore2 = new Store (new FileStore home+'/test-store2')
+fs1 = new FileStore home+'/test-store1'
+fs2 = new FileStore home+'/test-store2'
+testStore1 = new Store fs1
+testStore2 = new Store fs2
+
+after (done) -> async.forEach [fs1, fs2], ((each, cb) -> each.delete cb), done
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
