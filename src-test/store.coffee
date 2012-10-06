@@ -74,3 +74,11 @@ describe 'store', () ->
       testStoreA.commonCommit [testStoreC], (err, res) ->
         assert.equal res, undefined
         done()
+    it 'should find a common commit among three stores', (done) ->
+      testStoreA.commonCommit [testStoreB, testStoreD], (err, res) ->
+        assert.equal res, '0d98dde861d25a6122638fe3d2584ac13b7ec186'
+        done()
+    it 'should not find a common commit among four stores', (done) ->
+      testStoreA.commonCommit [testStoreB, testStoreC, testStoreD], (err, res) ->
+        assert.equal res, undefined
+        done()

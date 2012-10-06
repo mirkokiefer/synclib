@@ -57,21 +57,19 @@ findMatch = (firstPosition, restPositions) ->
   while firstPosition.current.length > 0
     currentPos = firstPosition.current.pop()
     newRestPostions = []
-    matchCount = 0
     while restPositions.length > 0
       restPosition = restPositions.pop()
       if (restPosition.visited.indexOf currentPos) > -1
         firstPosition.current.push restPosition.current...
         firstPosition.visited.push restPosition.visited...
-        matchCount++
       else
         newRestPostions.push restPosition
-    if matchCount >= newRestPostions.length
+    if newRestPostions.length == 0
       return [currentPos]
     restPositions = newRestPostions
     visitedFirstPositions.push currentPos
     firstPosition.visited.push currentPos
-  [null, visitedFirstPositions, restPositions]
+  [null, visitedFirstPositions, restPositions.reverse()]
 
 commonCommit = (positions, cb) ->
   if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
