@@ -101,11 +101,8 @@ class Store
     path = path.split('/').reverse()
     ref = if ref then ref else @head
     read ref, @backend, path, cb
-  commonCommit: ({store}, cb) ->
-    positions = [
-      {current: [@head], visited:[], backend:@backend},
-      {current: [store.head], visited:[], backend:store.backend}
-    ]
+  commonCommit: (stores, cb) ->
+    positions = ({current: [each.head], visited: [], backend: each.backend} for each in stores.concat this)
     commonCommit positions, cb
 
 module.exports = Store

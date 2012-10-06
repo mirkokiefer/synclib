@@ -63,10 +63,10 @@ describe 'store', () ->
       commitData testStoreC, data, done
   describe 'commonCommit', () ->
     it 'should find a common commit', (done) ->
-      testStoreA.commonCommit store: testStoreB, (err, res) ->
+      testStoreA.commonCommit [testStoreB], (err, res) ->
         assert.equal res, '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
         done()
     it 'should not find a common commit', (done) ->
-      testStoreA.commonCommit store: testStoreC, (err, res) ->
+      testStoreA.commonCommit [testStoreC], (err, res) ->
         assert.equal res, undefined
         done()
