@@ -10,6 +10,7 @@ _ = require 'underscore'
 home = process.env.HOME
 testStoreA = new Store (new MemoryStore())
 testStoreB = new Store (new MemoryStore())
+testStoreC = new Store (new MemoryStore())
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
@@ -17,6 +18,9 @@ testData = (store, data, cb) ->
       assert.equal value, data[each]
       cb()
   async.forEach _.keys(data), testEach, cb
+
+commitData = (store, data, cb) ->
+  async.forEachSeries data, ((each, cb) -> store.commit data:each, cb), cb
 
 dataA1 = 'a': 1, 'b/c': 3, 'b/d': 4
 dataA2 = 'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7
@@ -50,10 +54,13 @@ describe 'store', () ->
               done()
     it 'should populate the second store', (done) ->
       data = [dataB1, dataB2, dataB3, dataB4]
-      async.forEachSeries data, ((each, cb) -> testStoreB.commit data:each, cb), () ->
+      commitData testStoreB, data, () ->
         testStoreB.read path: 'c/a', (err, a) ->
           assert.equal a, dataB4['c/a']
           done()
+    it 'should populate the third store', (done) ->
+      data = [dataB3, dataB4]
+      commitData testStoreC, data, done
   describe 'commonCommit', () ->
     it 'should find a common commit', (done) ->
       testStoreA.commonCommit store: testStoreB, (err, res) ->
