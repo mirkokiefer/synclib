@@ -4,7 +4,7 @@ async = require 'async'
 _ = require 'underscore'
 
 class Tree
-  constructor: (@parent=null, @childTrees={}, @childData={}) ->
+  constructor: (@parents=[], @childTrees={}, @childData={}) ->
 
 readTree = (hash, backend, cb) ->
   if not hash then cb null, undefined
@@ -13,6 +13,7 @@ readTree = (hash, backend, cb) ->
 commit = (treeHash, backend, data, cb) ->
   readTree treeHash, backend, (err, tree) ->
     tree = if tree then tree else new Tree()
+    tree.parents = []
     childTreeData = {}
     childData = {}
     for {path, data:value} in data
@@ -34,7 +35,7 @@ commit = (treeHash, backend, data, cb) ->
           cb()
       async.forEach _.keys(childData), eachFun, cb
     async.parallel [commitChildTrees, commitChildData], (err) ->
-      tree.parent = treeHash
+      if treeHash then tree.parents.push treeHash
       backend.writeTree tree, cb
 
 read = (treeHash, backend, path, cb) ->
@@ -44,6 +45,44 @@ read = (treeHash, backend, path, cb) ->
       key = path.pop()
       if path.length == 0 then backend.readData tree.childData[key], cb
       else read tree.childTrees[key], backend, path, cb
+
+findParents = (trees, backend, cb) ->
+  reduceFun = (memo, each, cb) ->
+    backend.readTree each, (err, tree) ->
+      cb(null, memo.concat tree.parents)
+  async.reduce trees, [], reduceFun, cb
+
+findMatch = (firstPosition, restPositions) ->
+  visitedFirstPositions = []
+  while firstPosition.current.length > 0
+    currentPos = firstPosition.current.pop()
+    newRestPostions = []
+    matchCount = 0
+    while restPositions.length > 0
+      restPosition = restPositions.pop()
+      if (restPosition.visited.indexOf currentPos) > -1
+        firstPosition.current.push restPosition.current...
+        firstPosition.visited.push restPosition.visited...
+        matchCount++
+      else
+        newRestPostions.push restPosition
+    if matchCount >= newRestPostions.length
+      return [currentPos]
+    restPositions = newRestPostions
+    visitedFirstPositions.push currentPos
+    firstPosition.visited.push currentPos
+  [null, visitedFirstPositions, restPositions]
+
+commonCommit = (positions, cb) ->
+  [firstPosition, restPositions...] = positions
+  newPositions = []
+  [match, visitedFirstPositions, restPositions] = findMatch firstPosition, restPositions
+  if match then cb null, match
+  else
+    findParents visitedFirstPositions, firstPosition.backend, (err, parents) ->
+      firstPosition.current = parents
+      restPositions.push firstPosition
+      commonCommit restPositions, cb
 
 class Store
   constructor: (@backend, @head) ->
@@ -59,5 +98,11 @@ class Store
     path = path.split('/').reverse()
     ref = if ref then ref else @head
     read ref, @backend, path, cb
+  commonCommit: ({store}, cb) ->
+    positions = [
+      {current: [@head], visited:[], backend:@backend},
+      {current: [store.head], visited:[], backend:store.backend}
+    ]
+    commonCommit positions, cb
 
 module.exports = Store

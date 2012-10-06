@@ -22,6 +22,11 @@ dataA1 = 'a': 1, 'b/c': 3, 'b/d': 4
 dataA2 = 'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7
 dataA3 = 'b/e': 3
 
+dataB1 = dataA1
+dataB2 = dataA2
+dataB3 = 'b/f': 5
+dataB4 = 'c/a': 1
+
 describe 'store', () ->
   describe 'commit', () ->
     it 'should commit and read objects', (done) ->
@@ -43,4 +48,14 @@ describe 'store', () ->
             testStoreA.read path: 'b/e', (err, eHead2) ->
               assert.equal eHead2, dataA3['b/e']
               done()
-  
+    it 'should populate the second store', (done) ->
+      data = [dataB1, dataB2, dataB3, dataB4]
+      async.forEachSeries data, ((each, cb) -> testStoreB.commit data:each, cb), () ->
+        testStoreB.read path: 'c/a', (err, a) ->
+          assert.equal a, dataB4['c/a']
+          done()
+  describe 'commonCommit', () ->
+    it 'should find a common commit', (done) ->
+      testStoreA.commonCommit store: testStoreB, (err, res) ->
+        assert.equal res, '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
+        done()
