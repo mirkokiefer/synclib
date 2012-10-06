@@ -11,6 +11,7 @@ home = process.env.HOME
 testStoreA = new Store (new MemoryStore())
 testStoreB = new Store (new MemoryStore())
 testStoreC = new Store (new MemoryStore())
+testStoreD = new Store (new MemoryStore())
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
@@ -19,48 +20,51 @@ testData = (store, data, cb) ->
       cb()
   async.forEach _.keys(data), testEach, cb
 
-commitData = (store, data, cb) ->
+commitData = ({store, data}, cb) ->
   async.forEachSeries data, ((each, cb) -> store.commit data:each, cb), cb
 
-dataA1 = 'a': 1, 'b/c': 3, 'b/d': 4
-dataA2 = 'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7
-dataA3 = 'b/e': 3
-
-dataB1 = dataA1
-dataB2 = dataA2
-dataB3 = 'b/f': 5
-dataB4 = 'c/a': 1
+dataA = [
+  {'a': 1, 'b/c': 3, 'b/d': 4}
+  {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
+  {'b/e': 3}
+]
+dataB = [
+  dataA[0]
+  dataA[1]
+  {'b/f': 5}
+  {'c/a': 1}
+]
+dataC = [dataB[2], dataB[3]]
+dataD = [dataA[0], dataA[2]]
 
 describe 'store', () ->
   describe 'commit', () ->
     it 'should commit and read objects', (done) ->
-      testStoreA.commit data: dataA1, () ->
-        testData testStoreA, dataA1, done
+      testStoreA.commit data: dataA[0], () ->
+        testData testStoreA, dataA[0], done
     it 'should create a child commit', (done) ->
-      testStoreA.commit data: dataA2, () ->
-        testData testStoreA, dataA2, () ->
+      testStoreA.commit data: dataA[1], () ->
+        testData testStoreA, dataA[1], () ->
           testStoreA.read path: 'b/d', (err, d) ->
-            assert.equal d, dataA1['b/d']
+            assert.equal d, dataA[0]['b/d']
             done()
     it 'should create a forking commit', (done) ->
       head1 = testStoreA.head
-      testStoreA.commit data: dataA3, (err, head2) ->
+      testStoreA.commit data: dataA[2], (err, head2) ->
         testStoreA.read path: 'b/e', ref: head1, (err, eHead1) ->
-          assert.equal eHead1, dataA2['b/e']
+          assert.equal eHead1, dataA[1]['b/e']
           testStoreA.read path: 'b/e', ref: head2, (err, eHead2) ->
-            assert.equal eHead2, dataA3['b/e']
+            assert.equal eHead2, dataA[2]['b/e']
             testStoreA.read path: 'b/e', (err, eHead2) ->
-              assert.equal eHead2, dataA3['b/e']
+              assert.equal eHead2, dataA[2]['b/e']
               done()
-    it 'should populate the second store', (done) ->
-      data = [dataB1, dataB2, dataB3, dataB4]
-      commitData testStoreB, data, () ->
-        testStoreB.read path: 'c/a', (err, a) ->
-          assert.equal a, dataB4['c/a']
-          done()
-    it 'should populate the third store', (done) ->
-      data = [dataB3, dataB4]
-      commitData testStoreC, data, done
+    it 'should populate more test stores', (done) ->
+      data = [
+        {data: dataB, store: testStoreB}
+        {data: dataC, store: testStoreC}
+        {data: dataD, store: testStoreD}
+      ]
+      async.forEach data, commitData, done
   describe 'commonCommit', () ->
     it 'should find a common commit', (done) ->
       testStoreA.commonCommit [testStoreB], (err, res) ->
