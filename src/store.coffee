@@ -6,12 +6,12 @@ _ = require 'underscore'
 class Tree
   constructor: (@parents=[], @childTrees={}, @childData={}) ->
 
-readTree = (hash, backend, cb) ->
+readTree = (backend) -> (hash, cb) ->
   if not hash then cb null, undefined
   else backend.readTree hash, cb
 
 commit = (treeHash, backend, data, cb) ->
-  readTree treeHash, backend, (err, tree) ->
+  readTree(backend) treeHash, (err, tree) ->
     tree = if tree then tree else new Tree()
     tree.parents = []
     childTreeData = {}
@@ -41,7 +41,7 @@ commit = (treeHash, backend, data, cb) ->
 read = (treeHash, backend, path, cb) ->
   if not treeHash then cb null, undefined
   else
-    readTree treeHash, backend, (err, tree) ->
+    readTree(backend) treeHash, (err, tree) ->
       key = path.pop()
       if path.length == 0 then backend.readData tree.childData[key], cb
       else read tree.childTrees[key], backend, path, cb
@@ -84,6 +84,23 @@ findCommonCommit = (positions, cb) ->
       restPositions.push firstPosition
       findCommonCommit restPositions, cb
 
+findDiff = (tree1Hash, tree2Hash, backend, cb) ->
+  if tree1Hash == tree2Hash
+    cb null, {trees: [], data: []}
+    return
+  async.map [tree1Hash, tree2Hash], readTree(backend), (err, [tree1, tree2]) ->
+    tree1 = if tree1 then tree1 else new Tree()
+    diffTreeKeys = []
+    diff = data: [], trees: []
+    for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
+      diff.trees.push childTree
+      diffTreeKeys.push key
+    diff.data = (data for key, data of tree2.childData when tree1.childData[key] != data)
+    mapChildTree = (diff, key, cb) ->
+      findDiff tree1.childTrees[key], tree2.childTrees[key], backend, (err, childDiff) ->
+        cb null, trees: diff.trees.concat(childDiff.trees), data: diff.data.concat(childDiff.data)
+    async.reduce diffTreeKeys, diff, mapChildTree, cb
+
 class Store
   constructor: (@backend, @head) ->
   commit: ({data, ref}, cb) ->
@@ -102,5 +119,7 @@ class Store
     positions = ({current: [each.head], visited: [], store: each} for each in stores.concat this)
     findCommonCommit positions, cb
   treeParents: (treeHash, cb) -> @backend.readTree treeHash, (err, tree) -> cb(null, tree.parents)
+  diff: (tree1, tree2, cb) -> findDiff tree1, tree2, @backend, cb
+
 
 module.exports = Store

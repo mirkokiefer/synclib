@@ -28,6 +28,11 @@ dataA = [
   {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
   {'b/e': 3}
 ]
+dataAHashes = [
+  '0d98dde861d25a6122638fe3d2584ac13b7ec186'
+  '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
+  '6fb1b35a1d1324a2c221301e48818fbf69f66727'
+]
 dataB = [
   dataA[0]
   dataA[1]
@@ -40,10 +45,12 @@ dataD = [dataA[0], dataA[2]]
 describe 'store', () ->
   describe 'commit', () ->
     it 'should commit and read objects', (done) ->
-      testStoreA.commit data: dataA[0], () ->
+      testStoreA.commit data: dataA[0], (err, head) ->
+        assert.equal head, dataAHashes[0]
         testData testStoreA, dataA[0], done
     it 'should create a child commit', (done) ->
-      testStoreA.commit data: dataA[1], () ->
+      testStoreA.commit data: dataA[1], (err, head) ->
+        assert.equal head, dataAHashes[1]
         testData testStoreA, dataA[1], () ->
           testStoreA.read path: 'b/d', (err, d) ->
             assert.equal d, dataA[0]['b/d']
@@ -51,6 +58,7 @@ describe 'store', () ->
     it 'should create a forking commit', (done) ->
       head1 = testStoreA.head
       testStoreA.commit data: dataA[2], (err, head2) ->
+        assert.equal head2, dataAHashes[2]
         testStoreA.read path: 'b/e', ref: head1, (err, eHead1) ->
           assert.equal eHead1, dataA[1]['b/e']
           testStoreA.read path: 'b/e', ref: head2, (err, eHead2) ->
@@ -81,4 +89,10 @@ describe 'store', () ->
     it 'should not find a common commit among four stores', (done) ->
       testStoreA.commonCommit [testStoreB, testStoreC, testStoreD], (err, res) ->
         assert.equal res, undefined
+        done()
+  describe 'diff', () ->
+    it 'should find the diff between multiple stores', (done) ->
+      testStoreA.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
+        assert.equal diff.trees.length, 2
+        assert.equal diff.data.length, 4
         done()
