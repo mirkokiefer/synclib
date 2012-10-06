@@ -74,6 +74,9 @@ findMatch = (firstPosition, restPositions) ->
   [null, visitedFirstPositions, restPositions]
 
 commonCommit = (positions, cb) ->
+  if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
+    cb null
+    return
   [firstPosition, restPositions...] = positions
   newPositions = []
   [match, visitedFirstPositions, restPositions] = findMatch firstPosition, restPositions
