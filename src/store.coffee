@@ -46,44 +46,43 @@ read = (treeHash, backend, path, cb) ->
       if path.length == 0 then backend.readData tree.childData[key], cb
       else read tree.childTrees[key], backend, path, cb
 
-findParents = (trees, backend, cb) ->
-  reduceFun = (memo, each, cb) ->
-    backend.readTree each, (err, tree) ->
-      cb(null, memo.concat tree.parents)
-  async.reduce trees, [], reduceFun, cb
+findCommonCommit = (positions, cb) ->
+  findMatchInRestPositions = (firstPosition, restPositions) ->
+    visitedFirstPositions = []
+    while firstPosition.current.length > 0
+      currentPos = firstPosition.current.pop()
+      newRestPostions = []
+      while restPositions.length > 0
+        restPosition = restPositions.pop()
+        if (restPosition.visited.indexOf currentPos) > -1
+          firstPosition.current.push restPosition.current...
+          firstPosition.visited.push restPosition.visited...
+        else
+          newRestPostions.push restPosition
+      if newRestPostions.length == 0
+        return [currentPos]
+      restPositions = newRestPostions
+      visitedFirstPositions.push currentPos
+      firstPosition.visited.push currentPos
+    [null, visitedFirstPositions, restPositions.reverse()]
 
-findMatch = (firstPosition, restPositions) ->
-  visitedFirstPositions = []
-  while firstPosition.current.length > 0
-    currentPos = firstPosition.current.pop()
-    newRestPostions = []
-    while restPositions.length > 0
-      restPosition = restPositions.pop()
-      if (restPosition.visited.indexOf currentPos) > -1
-        firstPosition.current.push restPosition.current...
-        firstPosition.visited.push restPosition.visited...
-      else
-        newRestPostions.push restPosition
-    if newRestPostions.length == 0
-      return [currentPos]
-    restPositions = newRestPostions
-    visitedFirstPositions.push currentPos
-    firstPosition.visited.push currentPos
-  [null, visitedFirstPositions, restPositions.reverse()]
+  findParents = (trees, store, cb) ->
+    reduceFun = (memo, each, cb) ->
+      store.treeParents each, (err, parents) -> cb(null, memo.concat parents)
+    async.reduce trees, [], reduceFun, cb
 
-commonCommit = (positions, cb) ->
   if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
     cb null
     return
   [firstPosition, restPositions...] = positions
   newPositions = []
-  [match, visitedFirstPositions, restPositions] = findMatch firstPosition, restPositions
+  [match, visitedFirstPositions, restPositions] = findMatchInRestPositions firstPosition, restPositions
   if match then cb null, match
   else
-    findParents visitedFirstPositions, firstPosition.backend, (err, parents) ->
+    findParents visitedFirstPositions, firstPosition.store, (err, parents) ->
       firstPosition.current = parents
       restPositions.push firstPosition
-      commonCommit restPositions, cb
+      findCommonCommit restPositions, cb
 
 class Store
   constructor: (@backend, @head) ->
@@ -100,7 +99,8 @@ class Store
     ref = if ref then ref else @head
     read ref, @backend, path, cb
   commonCommit: (stores, cb) ->
-    positions = ({current: [each.head], visited: [], backend: each.backend} for each in stores.concat this)
-    commonCommit positions, cb
+    positions = ({current: [each.head], visited: [], store: each} for each in stores.concat this)
+    findCommonCommit positions, cb
+  treeParents: (treeHash, cb) -> @backend.readTree treeHash, (err, tree) -> cb(null, tree.parents)
 
 module.exports = Store
