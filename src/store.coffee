@@ -46,7 +46,9 @@ read = (treeHash, backend, path, cb) ->
       if path.length == 0 then backend.readData tree.childData[key], cb
       else read tree.childTrees[key], backend, path, cb
 
-findCommonCommit = (positions, cb) ->
+treeParents = (treeHash, backend, cb) -> backend.readTree treeHash, (err, tree) -> cb(null, tree.parents)
+
+findCommonCommit = (positions, backend, cb) ->
   findMatchInRestPositions = (firstPosition, restPositions) ->
     visitedFirstPositions = []
     while firstPosition.current.length > 0
@@ -68,7 +70,7 @@ findCommonCommit = (positions, cb) ->
 
   findParents = (trees, store, cb) ->
     reduceFun = (memo, each, cb) ->
-      store.treeParents each, (err, parents) -> cb(null, memo.concat parents)
+      treeParents each, backend, (err, parents) -> cb(null, memo.concat parents)
     async.reduce trees, [], reduceFun, cb
 
   if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
@@ -82,7 +84,7 @@ findCommonCommit = (positions, cb) ->
     findParents visitedFirstPositions, firstPosition.store, (err, parents) ->
       firstPosition.current = parents
       restPositions.push firstPosition
-      findCommonCommit restPositions, cb
+      findCommonCommit restPositions, backend, cb
 
 findDiff = (tree1Hash, tree2Hash, backend, cb) ->
   if tree1Hash == tree2Hash
@@ -122,10 +124,9 @@ class Store
     path = path.split('/').reverse()
     ref = if ref then ref else @head
     read ref, @backend, path, cb
-  commonCommit: (stores, cb) ->
-    positions = ({current: [each.head], visited: [], store: each} for each in stores.concat this)
-    findCommonCommit positions, cb
-  treeParents: (treeHash, cb) -> @backend.readTree treeHash, (err, tree) -> cb(null, tree.parents)
+  commonCommit: (trees, cb) ->
+    positions = ({current: [each], visited: []} for each in trees.concat this.head)
+    findCommonCommit positions, @backend, cb
   diff: (tree1, tree2, cb) -> findDiff tree1, tree2, @backend, cb
 
 

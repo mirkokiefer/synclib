@@ -7,10 +7,11 @@ _ = require 'underscore'
 utils = require '../lib/utils'
 
 home = process.env.HOME
-testStoreA = new Store (new MemoryStore())
-testStoreB = new Store (new MemoryStore())
-testStoreC = new Store (new MemoryStore())
-testStoreD = new Store (new MemoryStore())
+backend = new MemoryStore()
+testStoreA = new Store (backend)
+testStoreB = new Store (backend)
+testStoreC = new Store (backend)
+testStoreD = new Store (backend)
 
 testData = (store, data, cb) ->
   testEach = (each, cb) ->
@@ -73,20 +74,21 @@ describe 'store', () ->
       ]
       async.forEach data, commitData, done
   describe 'commonCommit', () ->
+    # should output the path as well
     it 'should find a common commit', (done) ->
-      testStoreA.commonCommit [testStoreB], (err, res) ->
+      testStoreA.commonCommit [testStoreB.head], (err, res) ->
         assert.equal res, '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
         done()
     it 'should not find a common commit', (done) ->
-      testStoreA.commonCommit [testStoreC], (err, res) ->
+      testStoreA.commonCommit [testStoreC.head], (err, res) ->
         assert.equal res, undefined
         done()
     it 'should find a common commit among three stores', (done) ->
-      testStoreA.commonCommit [testStoreB, testStoreD], (err, res) ->
+      testStoreA.commonCommit [testStoreB.head, testStoreD.head], (err, res) ->
         assert.equal res, '0d98dde861d25a6122638fe3d2584ac13b7ec186'
         done()
     it 'should not find a common commit among four stores', (done) ->
-      testStoreA.commonCommit [testStoreB, testStoreC, testStoreD], (err, res) ->
+      testStoreA.commonCommit [testStoreB.head, testStoreC.head, testStoreD.head], (err, res) ->
         assert.equal res, undefined
         done()
   describe 'diff', () ->
