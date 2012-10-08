@@ -4,11 +4,14 @@ async = require 'async'
 _ = require 'underscore'
 
 class Tree
-  constructor: (@parents=[], @childTrees={}, @childData={}) ->
+  constructor: ({parents, childTrees, childData}={}) ->
+    @parents = if parents then parents else []
+    @childTrees = if childTrees then childTrees else {}
+    @childData = if childData then childData else {}
 
 readTree = (backend) -> (hash, cb) ->
   if not hash then cb null, undefined
-  else backend.readTree hash, cb
+  else backend.readTree hash, (err, data) -> cb null, new Tree data
 
 commit = (treeHash, backend, data, cb) ->
   readTree(backend) treeHash, (err, tree) ->
@@ -46,7 +49,7 @@ read = (treeHash, backend, path, cb) ->
       if path.length == 0 then backend.readData tree.childData[key], cb
       else read tree.childTrees[key], backend, path, cb
 
-treeParents = (treeHash, backend, cb) -> backend.readTree treeHash, (err, tree) -> cb(null, tree.parents)
+treeParents = (treeHash, backend, cb) -> readTree(backend) treeHash, (err, tree) -> cb(null, tree.parents)
 
 findCommonCommit = (positions, backend, cb) ->
   findMatchInRestPositions = (firstPosition, restPositions) ->
