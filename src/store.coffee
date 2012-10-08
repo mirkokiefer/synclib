@@ -50,6 +50,9 @@ read = (treeHash, backend, path, cb) ->
       else read tree.childTrees[key], backend, path, cb
 
 treeParents = (treeHash, backend, cb) -> readTree(backend) treeHash, (err, tree) -> cb(null, tree.parents)
+treesParents = (trees, backend, cb) ->
+  reduceFun = (memo, each, cb) -> treeParents each, backend, (err, parents) -> cb(null, memo.concat parents)
+  async.reduce trees, [], reduceFun, cb
 
 findCommonCommit = (positions, backend, cb) ->
   findMatchInRestPositions = (firstPosition, restPositions) ->
@@ -71,10 +74,7 @@ findCommonCommit = (positions, backend, cb) ->
       firstPosition.visited.push currentPos
     [null, visitedFirstPositions, restPositions.reverse()]
 
-  findParents = (trees, backend, cb) ->
-    reduceFun = (memo, each, cb) ->
-      treeParents each, backend, (err, parents) -> cb(null, memo.concat parents)
-    async.reduce trees, [], reduceFun, cb
+  
 
   if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
     cb null
@@ -84,7 +84,7 @@ findCommonCommit = (positions, backend, cb) ->
   [match, visitedFirstPositions, restPositions] = findMatchInRestPositions firstPosition, restPositions
   if match then cb null, match
   else
-    findParents visitedFirstPositions, backend, (err, parents) ->
+    treesParents visitedFirstPositions, backend, (err, parents) ->
       firstPosition.current = parents
       restPositions.push firstPosition
       findCommonCommit restPositions, backend, cb
