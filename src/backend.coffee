@@ -1,15 +1,9 @@
 
 fs = require 'fs'
 resolvePath = (require 'path').resolve
-crypto = require 'crypto'
 exec = require('child_process').exec
-
+hash = require('./utils').hash
 removeDir = (dir, cb) -> exec 'rm -r -f ' + dir, cb
-
-hash = (data) ->
-  shasum = crypto.createHash 'sha1'
-  shasum.update data
-  shasum.digest 'hex'
 
 treeDir = 'tree'
 dataDir = 'data'

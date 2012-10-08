@@ -86,20 +86,27 @@ findCommonCommit = (positions, cb) ->
 
 findDiff = (tree1Hash, tree2Hash, backend, cb) ->
   if tree1Hash == tree2Hash
-    cb null, {trees: [], data: []}
+    cb null, {trees: {}, data: {}}
     return
   async.map [tree1Hash, tree2Hash], readTree(backend), (err, [tree1, tree2]) ->
     tree1 = if tree1 then tree1 else new Tree()
-    diffTreeKeys = []
-    diff = data: [], trees: []
+    diff = data: {}, trees: {}
     for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
-      diff.trees.push childTree
-      diffTreeKeys.push key
-    diff.data = (data for key, data of tree2.childData when tree1.childData[key] != data)
+      diff.trees[key] = childTree
+    for key, data of tree2.childData when tree1.childData[key] != data
+      diff.data[key] = data
+    for key, childTree of tree1.childTrees when tree2.childTrees[key] == undefined
+      diff.trees[key] = null
+    for key, data of tree1.childData when tree2.childData[key] == undefined
+      diff.data[key] = null
     mapChildTree = (diff, key, cb) ->
       findDiff tree1.childTrees[key], tree2.childTrees[key], backend, (err, childDiff) ->
-        cb null, trees: diff.trees.concat(childDiff.trees), data: diff.data.concat(childDiff.data)
-    async.reduce diffTreeKeys, diff, mapChildTree, cb
+        for childKey, childTree of childDiff.trees
+          diff.trees[key+'/'+childKey] = childTree
+        for childKey, childData of childDiff.data
+          diff.data[key+'/'+childKey] = childData
+        cb null, diff
+    async.reduce _.keys(diff.trees), diff, mapChildTree, cb
 
 class Store
   constructor: (@backend, @head) ->

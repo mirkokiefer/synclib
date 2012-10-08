@@ -4,8 +4,7 @@ Store = require('../lib/store');
 MemoryStore = require('../lib/backend').MemoryStore
 async = require 'async'
 _ = require 'underscore'
-
-
+utils = require '../lib/utils'
 
 home = process.env.HOME
 testStoreA = new Store (new MemoryStore())
@@ -93,6 +92,10 @@ describe 'store', () ->
   describe 'diff', () ->
     it 'should find the diff between multiple stores', (done) ->
       testStoreA.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
-        assert.equal diff.trees.length, 2
-        assert.equal diff.data.length, 4
+        assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
+        for key, data of diff.data
+          assert.equal data, utils.hash JSON.stringify(dataA[1][key])
+        assert.equal _.keys(diff.trees).length, 2
+        assert.equal diff.trees['b'], 'f9829f19f6dc90a1671fb120b729a41168e3f507'
+        assert.equal diff.trees['b/f'], '88566102a52fceeac75a9446a7594c4f12efe54d'
         done()
