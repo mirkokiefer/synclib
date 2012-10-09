@@ -79,7 +79,7 @@ describe 'store', () ->
     # should output the path as well
     it 'should find a common commit', (done) ->
       testStoreA.commonCommit [testStoreB.head], (err, res) ->
-        assert.equal res, '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
+        assert.equal res, dataAHashes[1]
         done()
     it 'should not find a common commit', (done) ->
       testStoreA.commonCommit [testStoreC.head], (err, res) ->
@@ -87,7 +87,7 @@ describe 'store', () ->
         done()
     it 'should find a common commit among three stores', (done) ->
       testStoreA.commonCommit [testStoreB.head, testStoreD.head], (err, res) ->
-        assert.equal res, '0d98dde861d25a6122638fe3d2584ac13b7ec186'
+        assert.equal res, dataAHashes[0]
         done()
     it 'should not find a common commit among four stores', (done) ->
       testStoreA.commonCommit [testStoreB.head, testStoreC.head, testStoreD.head], (err, res) ->
