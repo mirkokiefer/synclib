@@ -23,6 +23,8 @@ testData = (store, data, cb) ->
 commitData = ({store, data}, cb) ->
   async.forEachSeries data, ((each, cb) -> store.commit data:each, cb), cb
 
+readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> backend.readData each, cb), cb
+
 dataA = [
   {'a': 1, 'b/c': 3, 'b/d': 4}
   {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
@@ -92,7 +94,7 @@ describe 'store', () ->
         assert.equal res, undefined
         done()
   describe 'diff', () ->
-    it 'should find the diff between multiple stores', (done) ->
+    it 'should find the diff between multiple trees', (done) ->
       testStoreA.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
         assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
         for key, data of diff.data
@@ -101,11 +103,21 @@ describe 'store', () ->
         assert.equal diff.trees['b'], 'f9829f19f6dc90a1671fb120b729a41168e3f507'
         assert.equal diff.trees['b/f'], '88566102a52fceeac75a9446a7594c4f12efe54d'
         done()
+    it 'should find the diff between null and a tree', (done) ->
+      testStoreA.diff null, dataAHashes[0], (err, diff) ->
+        for key, data of diff.data
+          assert.equal data, hash JSON.stringify(dataA[0][key])
+        done()
   describe 'diffSince', () ->
     it 'should find the diff between trees in the past and the current head', (done) ->
       testStoreA.diffSince [dataAHashes[0]], (err, diff) ->
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
         realDataHashs = (hash JSON.stringify(each) for each in realData)
         assert.equal _.intersection(diff.data, realDataHashs).length, realData.length
+        done()
+    it 'should find the diff between a tree in the past that doesnt exist and the current head', (done) ->
+      testStoreA.diffSince [null], (err, diff) ->
+        realDataHashs = (hash JSON.stringify(each) for each in _.values(dataA[0]))
+        assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
         done()
 

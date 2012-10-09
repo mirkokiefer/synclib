@@ -124,12 +124,15 @@ findDiffSince = (positions, oldTrees, backend, cb) ->
   else
     reduceFun = (diff, eachPosition, cb) ->
       treeParents eachPosition, backend, (err, parents) ->
-        reduceFun = (diff, eachParent, cb) ->
-          findDiff eachParent, eachPosition, backend, (err, pathDiff) ->
-            cb null, trees: _.union(diff.trees, pathDiff.trees), data: _.union(diff.data, pathDiff.data)
-        async.reduce parents, diff, reduceFun, (err, diff) ->
-          findDiffSince parents, oldTrees, backend, (err, parentDiff) ->
-            cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)
+        if parents.length > 0
+          reduceFun = (diff, eachParent, cb) ->
+            findDiff eachParent, eachPosition, backend, (err, pathDiff) ->
+              cb null, trees: _.union(diff.trees, pathDiff.trees), data: _.union(diff.data, pathDiff.data)
+          async.reduce parents, diff, reduceFun, (err, diff) ->
+            findDiffSince parents, oldTrees, backend, (err, parentDiff) ->
+              cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)
+        else findDiff null, eachPosition, backend, (err, parentDiff) ->
+          cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)          
     async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
 class Store
