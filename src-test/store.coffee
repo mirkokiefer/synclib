@@ -26,12 +26,12 @@ commitData = ({store, data}, cb) ->
 dataA = [
   {'a': 1, 'b/c': 3, 'b/d': 4}
   {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
-  {'b/e': 3}
+  {'b/e': 9}
 ]
 dataAHashes = [
   '0d98dde861d25a6122638fe3d2584ac13b7ec186'
   '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
-  '6fb1b35a1d1324a2c221301e48818fbf69f66727'
+  '81a8f5dcf70ee8418f667058b884d203ecfe9561'
 ]
 dataB = [
   dataA[0]
