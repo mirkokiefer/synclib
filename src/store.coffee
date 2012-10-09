@@ -2,6 +2,8 @@
 utils = require 'livelyutils'
 async = require 'async'
 _ = require 'underscore'
+union = _.union
+values = _.values
 
 class Tree
   constructor: ({parents, childTrees, childData}={}) ->
@@ -114,7 +116,7 @@ findDiffWithPaths = (tree1Hash, tree2Hash, backend, cb) ->
     async.reduce _.keys(diff.trees), diff, mapChildTree, cb
 
 findDiff = (tree1Hash, tree2Hash, backend, cb) ->
-  findDiffWithPaths tree1Hash, tree2Hash, backend, (err, res) -> cb null, trees: _.values(res.trees), data: _.values(res.data)
+  findDiffWithPaths tree1Hash, tree2Hash, backend, (err, res) -> cb null, trees: values(res.trees), data: values(res.data)
 
 findDiffSince = (positions, oldTrees, backend, cb) ->
   for each in oldTrees when _.contains positions, each
@@ -122,17 +124,16 @@ findDiffSince = (positions, oldTrees, backend, cb) ->
     oldTrees = _.without oldTrees, each
   if (oldTrees.length == 0) or (positions.length == 0) then cb null, {trees: [], data: []}
   else
+    merge = (diff, cb) -> (err, newDiff) ->
+      cb null, trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
     reduceFun = (diff, eachPosition, cb) ->
       treeParents eachPosition, backend, (err, parents) ->
         if parents.length > 0
           reduceFun = (diff, eachParent, cb) ->
-            findDiff eachParent, eachPosition, backend, (err, pathDiff) ->
-              cb null, trees: _.union(diff.trees, pathDiff.trees), data: _.union(diff.data, pathDiff.data)
+            findDiff eachParent, eachPosition, backend, merge(diff, cb)
           async.reduce parents, diff, reduceFun, (err, diff) ->
-            findDiffSince parents, oldTrees, backend, (err, parentDiff) ->
-              cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)
-        else findDiff null, eachPosition, backend, (err, parentDiff) ->
-          cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)          
+            findDiffSince parents, oldTrees, backend, merge(diff, cb)
+        else findDiff null, eachPosition, backend, merge(diff, cb)         
     async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
 class Store
