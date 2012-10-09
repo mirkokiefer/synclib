@@ -89,7 +89,7 @@ findCommonCommit = (positions, backend, cb) ->
       restPositions.push firstPosition
       findCommonCommit restPositions, backend, cb
 
-findDiff = (tree1Hash, tree2Hash, backend, cb) ->
+findDiffWithPaths = (tree1Hash, tree2Hash, backend, cb) ->
   if tree1Hash == tree2Hash
     cb null, {trees: {}, data: {}}
     return
@@ -105,13 +105,32 @@ findDiff = (tree1Hash, tree2Hash, backend, cb) ->
     for key, data of tree1.childData when tree2.childData[key] == undefined
       diff.data[key] = null
     mapChildTree = (diff, key, cb) ->
-      findDiff tree1.childTrees[key], tree2.childTrees[key], backend, (err, childDiff) ->
+      findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], backend, (err, childDiff) ->
         for childKey, childTree of childDiff.trees
           diff.trees[key+'/'+childKey] = childTree
         for childKey, childData of childDiff.data
           diff.data[key+'/'+childKey] = childData
         cb null, diff
     async.reduce _.keys(diff.trees), diff, mapChildTree, cb
+
+findDiff = (tree1Hash, tree2Hash, backend, cb) ->
+  findDiffWithPaths tree1Hash, tree2Hash, backend, (err, res) -> cb null, trees: _.values(res.trees), data: _.values(res.data)
+
+findDiffSince = (positions, oldTrees, backend, cb) ->
+  for each in oldTrees when _.contains positions, each
+    positions = _.without positions, each
+    oldTrees = _.without oldTrees, each
+  if (oldTrees.length == 0) or (positions.length == 0) then cb null, {trees: [], data: []}
+  else
+    reduceFun = (diff, eachPosition, cb) ->
+      treeParents eachPosition, backend, (err, parents) ->
+        reduceFun = (diff, eachParent, cb) ->
+          findDiff eachParent, eachPosition, backend, (err, pathDiff) ->
+            cb null, trees: _.union(diff.trees, pathDiff.trees), data: _.union(diff.data, pathDiff.data)
+        async.reduce parents, diff, reduceFun, (err, diff) ->
+          findDiffSince parents, oldTrees, backend, (err, parentDiff) ->
+            cb null, trees: _.union(diff.trees, parentDiff.trees), data: _.union(diff.data, parentDiff.data)
+    async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
 class Store
   constructor: (@backend, @head) ->
@@ -130,7 +149,7 @@ class Store
   commonCommit: (trees, cb) ->
     positions = ({current: [each], visited: []} for each in trees.concat this.head)
     findCommonCommit positions, @backend, cb
-  diff: (tree1, tree2, cb) -> findDiff tree1, tree2, @backend, cb
-
+  diff: (tree1, tree2, cb) -> findDiffWithPaths tree1, tree2, @backend, cb
+  diffSince: (trees, cb) -> findDiffSince [@head], trees, @backend, cb
 
 module.exports = Store
