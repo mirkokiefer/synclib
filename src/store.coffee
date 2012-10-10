@@ -60,12 +60,10 @@ findCommonCommit = (trees1, trees2, backend, cb) ->
   if (trees1.current.length == 0) and (trees2.current.length == 0)
     cb null, undefined
     return
-  for each in trees1.current when _.contains trees2.visited, each
-    cb null, each
-    return
-  for each in trees2.current when _.contains trees1.visited, each
-    cb null, each
-    return
+  for [trees1, trees2] in [[trees1, trees2], [trees2, trees1]]
+    for each in trees1.current when _.contains trees2.visited.concat(trees2.current), each
+      cb null, each
+      return
   async.map [trees1.current, trees2.current], treesParents(backend), (err, [trees1Parents, trees2Parents]) ->
     merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
     findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), backend, cb
