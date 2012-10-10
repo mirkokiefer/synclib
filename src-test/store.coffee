@@ -108,6 +108,10 @@ describe 'store', () ->
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[0][key])
         done()
+    it 'should find the diff between the current head and another tree', (done) ->
+      testStoreA.diff testStoreB.head, (err, diff) ->
+        assert.ok diff
+        done()
   describe 'diffSince', () ->
     it 'should find the diff between trees in the past and the current head', (done) ->
       testStoreA.diffSince [dataAHashes[0]], (err, diff) ->

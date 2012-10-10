@@ -131,7 +131,9 @@ class Store
   commonCommit: (tree, cb) ->
     [trees1, trees2] = ({current: [each], visited: []} for each in [tree, this.head])
     findCommonCommit trees1, trees2, @backend, cb
-  diff: (tree1, tree2, cb) -> findDiffWithPaths tree1, tree2, @backend, cb
+  diff: (tree1, tree2, cb) ->
+    if not cb then [tree1, tree2, cb] = [@head, tree1, tree2]
+    findDiffWithPaths tree1, tree2, @backend, cb
   diffSince: (trees, cb) -> findDiffSince [@head], trees, @backend, cb
 
 module.exports = Store
