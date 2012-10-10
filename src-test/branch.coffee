@@ -1,6 +1,6 @@
 
 assert = require 'assert'
-Branch = require('../lib/store');
+Branch = require('../lib/branch');
 MemoryStore = require('../lib/backend').MemoryStore
 async = require 'async'
 _ = require 'underscore'
