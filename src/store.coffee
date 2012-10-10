@@ -52,42 +52,23 @@ read = (treeHash, backend, path, cb) ->
       else read tree.childTrees[key], backend, path, cb
 
 treeParents = (treeHash, backend, cb) -> readTree(backend) treeHash, (err, tree) -> cb(null, tree.parents)
-treesParents = (trees, backend, cb) ->
+treesParents = (backend) -> (trees, cb) ->
   reduceFun = (memo, each, cb) -> treeParents each, backend, (err, parents) -> cb(null, memo.concat parents)
   async.reduce trees, [], reduceFun, cb
 
-findCommonCommit = (positions, backend, cb) ->
-  findMatchInRestPositions = (firstPosition, restPositions) ->
-    visitedFirstPositions = []
-    while firstPosition.current.length > 0
-      currentPos = firstPosition.current.pop()
-      newRestPostions = []
-      while restPositions.length > 0
-        restPosition = restPositions.pop()
-        if (restPosition.visited.indexOf currentPos) > -1
-          firstPosition.current.push restPosition.current...
-          firstPosition.visited.push restPosition.visited...
-        else
-          newRestPostions.push restPosition
-      if newRestPostions.length == 0
-        return [currentPos]
-      restPositions = newRestPostions
-      visitedFirstPositions.push currentPos
-      firstPosition.visited.push currentPos
-    [null, visitedFirstPositions, restPositions.reverse()]
-
-  if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
-    cb null
+findCommonCommit = (trees1, trees2, backend, cb) ->
+  if (trees1.current.length == 0) and (trees2.current.length == 0)
+    cb null, undefined
     return
-  [firstPosition, restPositions...] = positions
-  newPositions = []
-  [match, visitedFirstPositions, restPositions] = findMatchInRestPositions firstPosition, restPositions
-  if match then cb null, match
-  else
-    treesParents visitedFirstPositions, backend, (err, parents) ->
-      firstPosition.current = parents
-      restPositions.push firstPosition
-      findCommonCommit restPositions, backend, cb
+  for each in trees1.current when _.contains trees2.visited, each
+    cb null, each
+    return
+  for each in trees2.current when _.contains trees1.visited, each
+    cb null, each
+    return
+  async.map [trees1.current, trees2.current], treesParents(backend), (err, [trees1Parents, trees2Parents]) ->
+    merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
+    findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), backend, cb
 
 findDiffWithPaths = (tree1Hash, tree2Hash, backend, cb) ->
   if tree1Hash == tree2Hash
@@ -150,8 +131,8 @@ class Store
     ref = if ref then ref else @head
     read ref, @backend, path, cb
   commonCommit: (tree, cb) ->
-    positions = ({current: [each], visited: []} for each in [tree, this.head])
-    findCommonCommit positions, @backend, cb
+    [trees1, trees2] = ({current: [each], visited: []} for each in [tree, this.head])
+    findCommonCommit trees1, trees2, @backend, cb
   diff: (tree1, tree2, cb) -> findDiffWithPaths tree1, tree2, @backend, cb
   diffSince: (trees, cb) -> findDiffSince [@head], trees, @backend, cb
 
