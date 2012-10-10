@@ -20,11 +20,19 @@ testData = (store, data, cb) ->
       cb()
   async.forEach _.keys(data), testEach, cb
 
-commitData = ({store, data}, cb) ->
-  async.forEachSeries data, ((each, cb) -> store.commit data:each, cb), cb
+commitData = ({store, data, ref}, cb) ->
+  first = data.shift()
+  store.commit data:first, ref: ref, (err) ->
+    async.forEachSeries data, ((each, cb) -> store.commit data:each, cb), cb
 
 readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> backend.readData each, cb), cb
-
+readParents = (treeHash, cb) ->
+  backend.readTree treeHash, (err, tree) ->
+    if tree.parents.length == 0
+      cb null, treeHash
+    else
+      async.map tree.parents, readParents, (err, res) ->
+        cb null, [treeHash, res]
 dataA = [
   {'a': 1, 'b/c': 3, 'b/d': 4}
   {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
@@ -35,14 +43,17 @@ dataAHashes = [
   '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
   '81a8f5dcf70ee8418f667058b884d203ecfe9561'
 ]
+
 dataB = [
-  dataA[0]
-  dataA[1]
   {'b/f': 5}
   {'c/a': 1}
+  {'a': 3, 'u': 7}
+  {'b/c': 5, 'b/e': 1, 'b/f/a': 9}
 ]
-dataC = [dataB[2], dataB[3]]
-dataD = [dataA[0], dataA[2]]
+dataC = [dataB[0], dataB[1]]
+dataD = ['f/g': 88]
+commitB = {data: dataB, ref: dataAHashes[1], store: testStoreB}
+commitC = {data: dataC, store: testStoreC}
 
 describe 'store', () ->
   describe 'commit', () ->
@@ -57,7 +68,7 @@ describe 'store', () ->
           testStoreA.read path: 'b/d', (err, d) ->
             assert.equal d, dataA[0]['b/d']
             done()
-    it 'should create a forking commit', (done) ->
+    it 'should read from a previous commit', (done) ->
       head1 = testStoreA.head
       testStoreA.commit data: dataA[2], (err, head2) ->
         assert.equal head2, dataAHashes[2]
@@ -68,29 +79,18 @@ describe 'store', () ->
             testStoreA.read path: 'b/e', (err, eHead2) ->
               assert.equal eHead2, dataA[2]['b/e']
               done()
+    it 'should create a fork', (done) ->
+      commitData commitB, done
     it 'should populate more test stores', (done) ->
-      data = [
-        {data: dataB, store: testStoreB}
-        {data: dataC, store: testStoreC}
-        {data: dataD, store: testStoreD}
-      ]
-      async.forEach data, commitData, done
+      async.forEach [commitC], commitData, done
   describe 'commonCommit', () ->
-    # should output the path as well
+    # should maybe output the path as well
     it 'should find a common commit', (done) ->
-      testStoreA.commonCommit [testStoreB.head], (err, res) ->
+      testStoreA.commonCommit testStoreB.head, (err, res) ->
         assert.equal res, dataAHashes[1]
         done()
     it 'should not find a common commit', (done) ->
-      testStoreA.commonCommit [testStoreC.head], (err, res) ->
-        assert.equal res, undefined
-        done()
-    it 'should find a common commit among three stores', (done) ->
-      testStoreA.commonCommit [testStoreB.head, testStoreD.head], (err, res) ->
-        assert.equal res, dataAHashes[0]
-        done()
-    it 'should not find a common commit among four stores', (done) ->
-      testStoreA.commonCommit [testStoreB.head, testStoreC.head, testStoreD.head], (err, res) ->
+      testStoreA.commonCommit testStoreC.head, (err, res) ->
         assert.equal res, undefined
         done()
   describe 'diff', () ->
@@ -120,4 +120,7 @@ describe 'store', () ->
         realDataHashs = (hash JSON.stringify(each) for each in _.values(dataA[0]))
         assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
         done()
+  ###describe 'merge', () ->
+    it 'should merge two branches', () ->
+      testStoreA.merge 
 

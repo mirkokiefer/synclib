@@ -76,8 +76,6 @@ findCommonCommit = (positions, backend, cb) ->
       firstPosition.visited.push currentPos
     [null, visitedFirstPositions, restPositions.reverse()]
 
-  
-
   if positions.reduce ((memo, each) -> memo and each.current.length == 0), true
     cb null
     return
@@ -136,6 +134,7 @@ findDiffSince = (positions, oldTrees, backend, cb) ->
         else findDiff null, eachPosition, backend, merge(diff, cb)         
     async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
+# rename Store to Branch?
 class Store
   constructor: (@backend, @head) ->
   commit: ({data, ref}, cb) ->
@@ -150,8 +149,8 @@ class Store
     path = path.split('/').reverse()
     ref = if ref then ref else @head
     read ref, @backend, path, cb
-  commonCommit: (trees, cb) ->
-    positions = ({current: [each], visited: []} for each in trees.concat this.head)
+  commonCommit: (tree, cb) ->
+    positions = ({current: [each], visited: []} for each in [tree, this.head])
     findCommonCommit positions, @backend, cb
   diff: (tree1, tree2, cb) -> findDiffWithPaths tree1, tree2, @backend, cb
   diffSince: (trees, cb) -> findDiffSince [@head], trees, @backend, cb
