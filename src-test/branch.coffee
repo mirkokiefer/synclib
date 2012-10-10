@@ -51,7 +51,6 @@ dataB = [
   {'b/c': 5, 'b/e': 1, 'b/f/a': 9}
 ]
 dataC = [dataB[0], dataB[1]]
-dataD = ['f/g': 88]
 commitB = {data: dataB, ref: dataAHashes[1], branch: testBranchB}
 commitC = {data: dataC, branch: testBranchC}
 
