@@ -15,34 +15,43 @@ readTree = (store) -> (hash, cb) ->
   if not hash then cb null, undefined
   else store.readTree hash, (err, data) -> cb null, new Tree data
 
-commit = (treeHash, store, data, cb) ->
-  readTree(store) treeHash, (err, tree) ->
-    tree = if tree then tree else new Tree()
+mergeNonConflictingKeys = (trees, hashs) ->
+  if trees.length == 0 then return new Tree()
+  [baseTree, rest...] = trees
+  for each in rest
+    for [baseObj, newObj] in [[baseTree.childData, each.childData], [baseTree.childTrees, each.childTrees]]
+      for key, data in newObj
+        if baseObj[key] != data then delete baseObj[key]
+        else baseObj[key] = data
+  baseTree.parents = hashs
+  baseTree
+
+commit = (treeHashs, store, data, cb) ->
+  async.map treeHashs, readTree(store), (err, trees) ->
+    newTree = mergeNonConflictingKeys trees, treeHashs  
     childTreeData = {}
     childData = {}
     for {path, data:value} in data
       key = path.pop()
-      if (path.length == 0) and (tree.childData[key] != value) then childData[key] = value
+      if path.length == 0 then childData[key] = value
       else
         if not childTreeData[key] then childTreeData[key] = []
         childTreeData[key].push {path, data:value}
     commitChildTrees = (cb) ->
       eachFun = (key, cb) ->
-        commit tree.childTrees[key], store, childTreeData[key], (err, newChildTree) ->
-          if newChildTree == tree.childTrees[key] then cb null, false
-          else
-            tree.childTrees[key] = newChildTree
-            cb(null, true)
-      async.map _.keys(childTreeData), eachFun, (err, changes) -> cb null, _.contains changes, true
+        affectedTrees = (each.childTrees[key] for each in trees when each.childTrees[key])
+        commit affectedTrees, store, childTreeData[key], (err, newChildTree) ->
+          newTree.childTrees[key] = newChildTree
+          cb()
+      async.forEach _.keys(childTreeData), eachFun, cb
     commitChildData = (cb) ->
       eachFun = (key, cb) ->
         store.writeData childData[key], (err, hash) -> 
-          tree.childData[key] = hash
+          newTree.childData[key] = hash
           cb()
       async.forEach _.keys(childData), eachFun, cb
-    async.parallel [commitChildTrees, commitChildData], (err, [treesChanged]) ->
-      if (treesChanged or _.size(childData) > 0) and treeHash then tree.parents = [treeHash]
-      store.writeTree tree, cb
+    async.parallel [commitChildTrees, commitChildData], (err) ->
+      store.writeTree newTree, cb
 
 read = (treeHash, store, path, cb) ->
   if not treeHash then cb null, undefined
