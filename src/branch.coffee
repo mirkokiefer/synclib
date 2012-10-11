@@ -26,7 +26,7 @@ mergeNonConflictingKeys = (trees, hashs) ->
   baseTree.parents = hashs
   baseTree
 
-commit = (treeHashs, store, data, cb) ->
+commit = (treeHashs, data, store, cb) ->
   async.map treeHashs, readTree(store), (err, trees) ->
     newTree = mergeNonConflictingKeys trees, treeHashs  
     childTreeData = {}
@@ -40,7 +40,7 @@ commit = (treeHashs, store, data, cb) ->
     commitChildTrees = (cb) ->
       eachFun = (key, cb) ->
         affectedTrees = (each.childTrees[key] for each in trees when each.childTrees[key])
-        commit affectedTrees, store, childTreeData[key], (err, newChildTree) ->
+        commit affectedTrees, childTreeData[key], store, (err, newChildTree) ->
           newTree.childTrees[key] = newChildTree
           cb()
       async.forEach _.keys(childTreeData), eachFun, cb
@@ -129,8 +129,8 @@ class Branch
     obj = this
     parsedData = for path, value of data
       path: path.split('/').reverse(), data: value
-    ref = if ref then ref else @head
-    commit ref, @store, parsedData, (err, newHead) ->
+    trees = if ref then [ref] else if @head then [@head] else []
+    commit trees, parsedData, @store, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
   read: ({path, ref}, cb) ->
