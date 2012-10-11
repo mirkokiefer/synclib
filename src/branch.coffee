@@ -4,6 +4,9 @@ async = require 'async'
 _ = require 'underscore'
 union = _.union
 values = _.values
+keys = _.keys
+intersection = _.intersection
+clone = _.clone
 
 class Tree
   constructor: ({parents, childTrees, childData}={}) ->
@@ -17,40 +20,41 @@ readTree = (store) -> (hash, cb) ->
 
 mergeNonConflictingKeys = (trees, hashs) ->
   if trees.length == 0 then return new Tree()
-  [baseTree, rest...] = trees
+  [first, rest...] = trees
+  baseTree = new Tree(parents: hashs, childTrees: clone(first.childTrees), childData: clone(first.childData))
   for each in rest
     for [baseObj, newObj] in [[baseTree.childData, each.childData], [baseTree.childTrees, each.childTrees]]
-      for key, data in newObj
-        if baseObj[key] != data then delete baseObj[key]
-        else baseObj[key] = data
+      for key, data of newObj
+        if (baseObj[key] != undefined) and (baseObj[key] != data)
+          delete baseObj[key]
+        else
+          baseObj[key] = data
   baseTree.parents = hashs
   baseTree
 
 commit = (treeHashs, data, store, cb) ->
+  map = (each, cb) ->
+    store.writeData each[1], (err, hash) -> cb null, path: each[0].split('/').reverse(), hash: hash
+  async.map _.pairs(data), map, (err, storedData) ->
+    commitWithParsedData treeHashs, storedData, store, cb
+
+commitWithParsedData = (treeHashs, data, store, cb) ->
   async.map treeHashs, readTree(store), (err, trees) ->
-    newTree = mergeNonConflictingKeys trees, treeHashs  
+    newTree = mergeNonConflictingKeys trees, treeHashs
     childTreeData = {}
     childData = {}
-    for {path, data:value} in data
+    for {path, hash} in data
       key = path.pop()
-      if path.length == 0 then childData[key] = value
+      if path.length == 0 then newTree.childData[key] = hash
       else
         if not childTreeData[key] then childTreeData[key] = []
-        childTreeData[key].push {path, data:value}
-    commitChildTrees = (cb) ->
-      eachFun = (key, cb) ->
-        affectedTrees = (each.childTrees[key] for each in trees when each.childTrees[key])
-        commit affectedTrees, childTreeData[key], store, (err, newChildTree) ->
-          newTree.childTrees[key] = newChildTree
-          cb()
-      async.forEach _.keys(childTreeData), eachFun, cb
-    commitChildData = (cb) ->
-      eachFun = (key, cb) ->
-        store.writeData childData[key], (err, hash) -> 
-          newTree.childData[key] = hash
-          cb()
-      async.forEach _.keys(childData), eachFun, cb
-    async.parallel [commitChildTrees, commitChildData], (err) ->
+        childTreeData[key].push {path, hash}
+    commitEachChildTree = (key, cb) ->
+      affectedTrees = (each.childTrees[key] for each in trees when each.childTrees[key])
+      commitWithParsedData affectedTrees, childTreeData[key], store, (err, newChildTree) ->
+        newTree.childTrees[key] = newChildTree
+        cb()
+    async.forEach keys(childTreeData), commitEachChildTree, (err) ->
       store.writeTree newTree, cb
 
 read = (treeHash, store, path, cb) ->
