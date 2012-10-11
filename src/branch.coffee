@@ -22,24 +22,26 @@ commit = (treeHash, store, data, cb) ->
     childData = {}
     for {path, data:value} in data
       key = path.pop()
-      if path.length == 0 then childData[key] = value
+      if (path.length == 0) and (tree.childData[key] != value) then childData[key] = value
       else
         if not childTreeData[key] then childTreeData[key] = []
         childTreeData[key].push {path, data:value}
     commitChildTrees = (cb) ->
       eachFun = (key, cb) ->
         commit tree.childTrees[key], store, childTreeData[key], (err, newChildTree) ->
-          tree.childTrees[key] = newChildTree
-          cb()
-      async.forEach _.keys(childTreeData), eachFun, cb
+          if newChildTree == tree.childTrees[key] then cb null, false
+          else
+            tree.childTrees[key] = newChildTree
+            cb(null, true)
+      async.map _.keys(childTreeData), eachFun, (err, changes) -> cb null, _.contains changes, true
     commitChildData = (cb) ->
       eachFun = (key, cb) ->
         store.writeData childData[key], (err, hash) -> 
           tree.childData[key] = hash
           cb()
       async.forEach _.keys(childData), eachFun, cb
-    async.parallel [commitChildTrees, commitChildData], (err) ->
-      if treeHash then tree.parents = [treeHash]
+    async.parallel [commitChildTrees, commitChildData], (err, [treesChanged]) ->
+      if (treesChanged or _.size(childData) > 0) and treeHash then tree.parents = [treeHash]
       store.writeTree tree, cb
 
 read = (treeHash, store, path, cb) ->
