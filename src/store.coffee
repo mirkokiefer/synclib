@@ -3,19 +3,33 @@ fs = require 'fs'
 resolvePath = (require 'path').resolve
 exec = require('child_process').exec
 hash = require('./utils').hash
+_ = require 'underscore'
+
 removeDir = (dir, cb) -> exec 'rm -r -f ' + dir, cb
 
 treeDir = 'tree'
 dataDir = 'data'
 getTreePath = (hash) -> treeDir+'/'+hash
 getDataPath = (hash) -> dataDir+'/'+hash
+serialize = (obj) ->
+  sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
+  obj.childTrees = sort(_.pairs obj.childTrees)
+  obj.childData = sort(_.pairs obj.childData)
+  obj.parents = obj.parents.sort()
+  sorted = sort(_.pairs obj)
+  JSON.stringify sorted
+deserialize = (string) ->
+  parsed = _.object JSON.parse(string)
+  parsed.childTrees = _.object parsed.childTrees
+  parsed.childData = _.object parsed.childData
+  parsed
 
 class GenericStore
   writeTree: (tree, cb) ->
-    json = JSON.stringify tree
+    json = serialize tree
     treeHash = hash json
     @write getTreePath(treeHash), json, (err) -> cb null, treeHash
-  readTree: (hash, cb) -> @read getTreePath(hash), (err, data) -> cb err, JSON.parse data
+  readTree: (hash, cb) -> @read getTreePath(hash), (err, data) -> cb err, deserialize data
   writeData: (data, cb) ->
     json = JSON.stringify data
     dataHash = hash json

@@ -39,9 +39,9 @@ dataA = [
   {'b/e': 9}
 ]
 dataAHashes = [
-  '0d98dde861d25a6122638fe3d2584ac13b7ec186'
-  '8509ccf2758f15f7ff4991de5c9ddb57372c991a'
-  '81a8f5dcf70ee8418f667058b884d203ecfe9561'
+  '988ea78f5200c52f2fbe94c0fe1f47c7f2b82d3c'
+  '4652680140ae3c38eb2c83b60fcef8aef16e5e29'
+  '096d1a7cbc45a862b35389b907c57c5615d0b984'
 ]
 
 dataB = [
@@ -99,8 +99,8 @@ describe 'branch', () ->
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[1][key])
         assert.equal _.keys(diff.trees).length, 2
-        assert.equal diff.trees['b'], 'f9829f19f6dc90a1671fb120b729a41168e3f507'
-        assert.equal diff.trees['b/f'], '88566102a52fceeac75a9446a7594c4f12efe54d'
+        assert.equal diff.trees['b'], '084de2796dd543036931c936744c1b17ac8b26ae'
+        assert.equal diff.trees['b/f'], '89d8b6cb2c831c292d6430c52abe5f7d96344b37'
         done()
     it 'should find the diff between null and a tree', (done) ->
       testBranchA.diff null, dataAHashes[0], (err, diff) ->
