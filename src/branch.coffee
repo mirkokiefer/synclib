@@ -18,7 +18,6 @@ readTree = (store) -> (hash, cb) ->
 commit = (treeHash, store, data, cb) ->
   readTree(store) treeHash, (err, tree) ->
     tree = if tree then tree else new Tree()
-    tree.parents = []
     childTreeData = {}
     childData = {}
     for {path, data:value} in data
@@ -40,7 +39,7 @@ commit = (treeHash, store, data, cb) ->
           cb()
       async.forEach _.keys(childData), eachFun, cb
     async.parallel [commitChildTrees, commitChildData], (err) ->
-      if treeHash then tree.parents.push treeHash
+      if treeHash then tree.parents = [treeHash]
       store.writeTree tree, cb
 
 read = (treeHash, store, path, cb) ->
