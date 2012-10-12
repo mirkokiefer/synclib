@@ -117,10 +117,8 @@ class Branch
   constructor: (@store, @head) ->
   commit: ({data, ref}, cb) ->
     obj = this
-    parsedData = for path, value of data
-      path: path.split('/').reverse(), data: value
-    trees = if ref then [ref] else if @head then [@head] else []
-    commit trees, parsedData, @store, (err, newHead) ->
+    tree = if ref then ref else @head
+    commit tree, data, @store, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
   read: ({path, ref}, cb) ->
