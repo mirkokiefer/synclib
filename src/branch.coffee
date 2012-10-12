@@ -18,31 +18,16 @@ readTree = (store) -> (hash, cb) ->
   if not hash then cb null, undefined
   else store.readTree hash, (err, data) -> cb null, new Tree data
 
-mergeNonConflictingKeys = (trees, hashs) ->
-  if trees.length == 0 then return new Tree()
-  [first, rest...] = trees
-  baseTree = new Tree(parents: hashs, childTrees: clone(first.childTrees), childData: clone(first.childData))
-  for each in rest
-    for [baseObj, newObj] in [[baseTree.childData, each.childData], [baseTree.childTrees, each.childTrees]]
-      for key, data of newObj
-        if (baseObj[key] != undefined) and (baseObj[key] != data)
-          delete baseObj[key]
-        else
-          baseObj[key] = data
-  baseTree.parents = hashs
-  baseTree
-
-commit = (treeHashs, data, store, cb) ->
-  map = (each, cb) ->
-    store.writeData each[1], (err, hash) -> cb null, path: each[0].split('/').reverse(), hash: hash
+commit = (treeHash, data, store, cb) ->
+  map = (each, cb) -> store.writeData each[1], (err, hash) -> cb null, path: each[0].split('/').reverse(), hash: hash
   async.map _.pairs(data), map, (err, storedData) ->
-    commitWithParsedData treeHashs, storedData, store, cb
+    commitWithStoredData treeHash, storedData, store, cb
 
-commitWithParsedData = (treeHashs, data, store, cb) ->
-  async.map treeHashs, readTree(store), (err, trees) ->
-    newTree = mergeNonConflictingKeys trees, treeHashs
+commitWithStoredData = (treeHash, data, store, cb) ->
+  readTree(store) treeHash, (err, tree) ->
+    newTree = if tree then new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), parents:[treeHash]
+    else new Tree()
     childTreeData = {}
-    childData = {}
     for {path, hash} in data
       key = path.pop()
       if path.length == 0 then newTree.childData[key] = hash
@@ -50,8 +35,8 @@ commitWithParsedData = (treeHashs, data, store, cb) ->
         if not childTreeData[key] then childTreeData[key] = []
         childTreeData[key].push {path, hash}
     commitEachChildTree = (key, cb) ->
-      affectedTrees = (each.childTrees[key] for each in trees when each.childTrees[key])
-      commitWithParsedData affectedTrees, childTreeData[key], store, (err, newChildTree) ->
+      affectedTree = if tree then tree.childTrees[key]
+      commitWithStoredData affectedTree, childTreeData[key], store, (err, newChildTree) ->
         newTree.childTrees[key] = newChildTree
         cb()
     async.forEach keys(childTreeData), commitEachChildTree, (err) ->
