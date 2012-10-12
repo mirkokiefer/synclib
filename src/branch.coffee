@@ -19,9 +19,14 @@ readTree = (store) -> (hash, cb) ->
   else store.readTree hash, (err, data) -> cb null, new Tree data
 
 commit = (treeHash, data, store, cb) ->
-  map = (each, cb) -> store.writeData each[1], (err, hash) -> cb null, path: each[0].split('/').reverse(), hash: hash
+  map = (each, cb) ->
+    if each[1] == null then cb(null, path: each[0], hash: undefined)
+    else store.writeData each[1], (err, hash) -> cb null, path: each[0], hash: hash
   async.map _.pairs(data), map, (err, storedData) ->
-    commitWithStoredData treeHash, storedData, store, cb
+    storedData = ({path: each.path.split('/').reverse(), hash: each.hash} for each in storedData)
+    commitWithStoredData treeHash, storedData, store, (err, hash) ->
+      if hash then cb null, hash
+      else store.writeTree (new Tree parents: [treeHash]), cb
 
 commitWithStoredData = (treeHash, data, store, cb) ->
   readTree(store) treeHash, (err, tree) ->
@@ -30,17 +35,21 @@ commitWithStoredData = (treeHash, data, store, cb) ->
     childTreeData = {}
     for {path, hash} in data
       key = path.pop()
-      if path.length == 0 then newTree.childData[key] = hash
+      if path.length == 0
+        if hash then newTree.childData[key] = hash
+        else delete newTree.childData[key]
       else
         if not childTreeData[key] then childTreeData[key] = []
         childTreeData[key].push {path, hash}
     commitEachChildTree = (key, cb) ->
       affectedTree = if tree then tree.childTrees[key]
       commitWithStoredData affectedTree, childTreeData[key], store, (err, newChildTree) ->
-        newTree.childTrees[key] = newChildTree
+        if newChildTree then newTree.childTrees[key] = newChildTree
+        else delete newTree.childTrees[key]
         cb()
     async.forEach keys(childTreeData), commitEachChildTree, (err) ->
-      store.writeTree newTree, cb
+      if (_.size(newTree.childTrees) == 0) and (_.size(newTree.childData) == 0) then cb null, undefined
+      else store.writeTree newTree, cb
 
 read = (treeHash, store, path, cb) ->
   if not treeHash then cb null, undefined

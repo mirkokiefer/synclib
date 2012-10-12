@@ -134,4 +134,9 @@ describe 'branch', () ->
             for key, value of each
               assert.ok (res.data[key] == hash JSON.stringify value) or (res.data[key] == undefined)
           done()
+  describe 'commit deletes', () ->
+    it 'should delete data', (done) ->
+      data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
+      testBranchB.commit data: data, (err, head) ->
+        testData testBranchB, data, done
 
