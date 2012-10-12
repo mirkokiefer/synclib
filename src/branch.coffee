@@ -169,6 +169,9 @@ class Branch
     findDiffWithPaths tree1, tree2, @store, cb
   diffSince: (trees, cb) -> findDiffSince [@head], trees, @store, cb
   merge: ({branch, strategy}, cb) ->
-    merge this, branch, strategy, @store, cb
+    obj = this
+    merge this, branch, strategy, @store, (err, head) ->
+      obj.head = head
+      cb null, head
 
 module.exports = Branch
