@@ -1,15 +1,16 @@
 
 assert = require 'assert'
 Branch = require('../lib/branch');
-MemoryStore = require('../lib/store').MemoryStore
-FileStore = require('../lib/store').FileStore
+Store = require('../lib/store')
+FileSystem = require('../lib/backends').FileSystem
+Memory = require('../lib/backends').Memory
 async = require 'async'
 _ = require 'underscore'
 hash = require('../lib/utils').hash
 
 home = process.env.HOME
-#backend = new FileStore(home+'/test1')
-backend = new MemoryStore()
+backend = new Store(new FileSystem(home+'/test1'))
+#backend = new Store(new Memory())
 testBranchA = new Branch (backend)
 testBranchB = new Branch (backend)
 testBranchC = new Branch (backend)
