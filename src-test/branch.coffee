@@ -23,9 +23,8 @@ testData = (branch, data, cb) ->
   async.forEach _.keys(data), testEach, cb
 
 commitData = ({branch, data, ref}, cb) ->
-  first = data.shift()
-  branch.commit data:first, ref: ref, (err) ->
-    async.forEachSeries data, ((each, cb) -> branch.commit data:each, cb), cb
+  branch.head = ref
+  async.forEachSeries data, ((each, cb) -> branch.commit each, cb), cb
 
 readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> backend.readData each, cb), cb
 readParents = (treeHash, cb) ->
@@ -59,11 +58,11 @@ commitC = {data: dataC, branch: testBranchC}
 describe 'branch', () ->
   describe 'commit', () ->
     it 'should commit and read objects', (done) ->
-      testBranchA.commit data: dataA[0], (err, head) ->
+      testBranchA.commit dataA[0], (err, head) ->
         assert.equal head, dataAHashes[0]
         testData testBranchA, dataA[0], done
     it 'should create a child commit', (done) ->
-      testBranchA.commit data: dataA[1], (err, head) ->
+      testBranchA.commit dataA[1], (err, head) ->
         assert.equal head, dataAHashes[1]
         testData testBranchA, dataA[1], () ->
           testBranchA.read path: 'b/d', (err, d) ->
@@ -71,7 +70,7 @@ describe 'branch', () ->
             done()
     it 'should read from a previous commit', (done) ->
       head1 = testBranchA.head
-      testBranchA.commit data: dataA[2], (err, head2) ->
+      testBranchA.commit dataA[2], (err, head2) ->
         assert.equal head2, dataAHashes[2]
         testBranchA.read path: 'b/e', ref: head1, (err, eHead1) ->
           assert.equal eHead1, dataA[1]['b/e']
@@ -137,6 +136,6 @@ describe 'branch', () ->
   describe 'commit deletes', () ->
     it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-      testBranchB.commit data: data, (err, head) ->
+      testBranchB.commit data, (err, head) ->
         testData testBranchB, data, done
 

@@ -160,10 +160,9 @@ merge = (branch1, branch2, strategy, store, cb) ->
 
 class Branch
   constructor: (@store, @head) ->
-  commit: ({data, ref}, cb) ->
+  commit: (data, cb) ->
     obj = this
-    tree = if ref then ref else @head
-    commit tree, data, @store, (err, newHead) ->
+    commit @head, data, @store, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
   read: ({path, ref}, cb) ->
