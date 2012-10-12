@@ -73,6 +73,7 @@ findDiffWithPaths = (tree1Hash, tree2Hash, store, cb) ->
     return
   async.map [tree1Hash, tree2Hash], readTree(store), (err, [tree1, tree2]) ->
     tree1 = if tree1 then tree1 else new Tree()
+    tree2 = if tree2 then tree2 else new Tree()
     diff = data: {}, trees: {}
     for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
       diff.trees[key] = childTree
