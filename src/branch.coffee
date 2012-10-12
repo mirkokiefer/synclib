@@ -113,6 +113,42 @@ findDiffSince = (positions, oldTrees, store, cb) ->
         else findDiff null, eachPosition, store, merge(diff, cb)         
     async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
+mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
+  conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
+  if not conflict then cb null, (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
+  else
+    async.map [commonTreeHash, tree1Hash, tree2Hash], readTree(store), (err, [commonTree, tree1, tree2]) ->
+      commonTree = if commonTree then commonTree else new Tree()
+      tree1 = if tree1 then tree1 else new Tree()
+      tree2 = if tree2 then tree2 else new Tree()
+      parents = (each for each in [tree1Hash, tree2Hash] when each)
+      newTree = new Tree parents: parents
+      mergeData = (cb) ->
+        each = (key, cb) ->
+          commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
+          conflict = (commonData != data1) and (commonData != data2)
+          if conflict
+            strategy key, data1, data2, (err, res) -> newTree.childData[key] = res; cb()
+          else
+            newTree.childData[key] = if data1 == commonData then data2 else data1
+            cb()
+        async.forEach union(keys(tree2.childData), keys(tree1.childData)), each, cb
+      mergeChildTrees = (cb) ->
+        each = (key, cb) ->
+          mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, store, (err, res) ->
+            newTree.childTrees[key] = res
+            cb()
+        async.forEach keys(tree2.childTrees), each, cb
+      async.parallel [mergeData, mergeChildTrees], () ->
+        store.writeTree newTree, cb
+
+merge = (branch1, branch2, strategy, store, cb) ->
+  branch1.commonCommit branch2.head, (err, commonTree) ->
+    if branch1.head == commonTree then cb null, branch2.head
+    else if branch2.head == commonTree then cb null, branch1.head
+    else
+      mergingCommit commonTree, branch1.head, branch2.head, strategy, store, cb
+
 class Branch
   constructor: (@store, @head) ->
   commit: ({data, ref}, cb) ->
@@ -132,5 +168,7 @@ class Branch
     if not cb then [tree1, tree2, cb] = [@head, tree1, tree2]
     findDiffWithPaths tree1, tree2, @store, cb
   diffSince: (trees, cb) -> findDiffSince [@head], trees, @store, cb
+  merge: ({branch, strategy}, cb) ->
+    merge this, branch, strategy, @store, cb
 
 module.exports = Branch

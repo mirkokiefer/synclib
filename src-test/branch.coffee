@@ -125,7 +125,13 @@ describe 'branch', () ->
         realDataHashs = (hash JSON.stringify(each) for each in _.values(dataA[0]))
         assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
         done()
-  ###describe 'merge', () ->
-    it 'should merge two branches', () ->
-      testBranchA.merge 
+  describe 'merge', () ->
+    it 'should merge two branches', (done) ->
+      strategy = (path, value1Hash, value2Hash, cb) -> cb null, value2Hash
+      testBranchA.merge branch: testBranchB, strategy: strategy, (err, head) ->
+        testBranchA.diff head, (err, res) ->
+          for each in dataB
+            for key, value of each
+              assert.ok (res.data[key] == hash JSON.stringify value) or (res.data[key] == undefined)
+          done()
 
