@@ -82,7 +82,7 @@ describe 'branch', () ->
               done()
     it 'should create a fork', (done) ->
       commitData commitB, done
-    it 'should populate more test branchs', (done) ->
+    it 'should populate more test branches', (done) ->
       async.forEach [commitC], commitData, done
   describe 'commonCommit', () ->
     # should maybe output the path as well
@@ -95,7 +95,7 @@ describe 'branch', () ->
         assert.equal res, undefined
         done()
   describe 'diff', () ->
-    it 'should find the diff between multiple trees', (done) ->
+    it 'should find the diff between two trees', (done) ->
       testBranchA.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
         assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
         for key, data of diff.data
