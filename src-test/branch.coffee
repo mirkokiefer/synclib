@@ -9,12 +9,12 @@ _ = require 'underscore'
 hash = require('../lib/utils').hash
 
 home = process.env.HOME
-backend = new Store(new FileSystem(home+'/test1'))
-#backend = new Store(new Memory())
-testBranchA = new Branch (backend)
-testBranchB = new Branch (backend)
-testBranchC = new Branch (backend)
-testBranchD = new Branch (backend)
+store = new Store(new FileSystem(home+'/test1'))
+#store = new Store(new Memory())
+testBranchA = new Branch (store)
+testBranchB = new Branch (store)
+testBranchC = new Branch (store)
+testBranchD = new Branch (store)
 
 testData = (branch, data, cb) ->
   testEach = (each, cb) ->
@@ -27,9 +27,9 @@ commitData = ({branch, data, ref}, cb) ->
   branch.head = ref
   async.forEachSeries data, ((each, cb) -> branch.commit each, cb), cb
 
-readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> backend.readData each, cb), cb
+readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> store.readData each, cb), cb
 readParents = (treeHash, cb) ->
-  backend.readTree treeHash, (err, tree) ->
+  store.readTree treeHash, (err, tree) ->
     if tree.parents.length == 0
       cb null, treeHash
     else
