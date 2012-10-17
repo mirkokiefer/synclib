@@ -96,7 +96,7 @@ describe 'branch', () ->
         done()
   describe 'diff', () ->
     it 'should find the diff between two trees', (done) ->
-      testBranchA.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
+      store.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
         assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[1][key])
@@ -105,7 +105,7 @@ describe 'branch', () ->
         assert.equal diff.trees['b/f'], '89d8b6cb2c831c292d6430c52abe5f7d96344b37'
         done()
     it 'should find the diff between null and a tree', (done) ->
-      testBranchA.diff null, dataAHashes[0], (err, diff) ->
+      store.diff null, dataAHashes[0], (err, diff) ->
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[0][key])
         done()
