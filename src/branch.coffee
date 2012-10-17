@@ -12,8 +12,8 @@ class Branch
   read: ({path, ref}, cb) ->
     ref = if ref then ref else @head
     @store.read ref, path, cb
-  commonCommit: (tree, cb) -> @store.commonCommit @head, tree, cb
-  diff: (tree, cb) -> @store.diff @head, tree, cb
+  commonCommit: (branch, cb) -> @store.commonCommit @head, branch.head, cb
+  diff: (branch, cb) -> @store.diff @head, branch.head, cb
   diffSince: (trees, cb) -> @store.diffSince [@head], trees, cb
   merge: ({branch, strategy}, cb) ->
     obj = this

@@ -87,11 +87,11 @@ describe 'branch', () ->
   describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', (done) ->
-      testBranchA.commonCommit testBranchB.head, (err, res) ->
+      testBranchA.commonCommit testBranchB, (err, res) ->
         assert.equal res, dataAHashes[1]
         done()
     it 'should not find a common commit', (done) ->
-      testBranchA.commonCommit testBranchC.head, (err, res) ->
+      testBranchA.commonCommit testBranchC, (err, res) ->
         assert.equal res, undefined
         done()
   describe 'diff', () ->
@@ -110,7 +110,7 @@ describe 'branch', () ->
           assert.equal data, hash JSON.stringify(dataA[0][key])
         done()
     it 'should find the diff between the current head and another tree', (done) ->
-      testBranchA.diff testBranchB.head, (err, diff) ->
+      testBranchA.diff testBranchB, (err, diff) ->
         assert.ok diff
         done()
   describe 'diffSince', () ->
@@ -128,8 +128,9 @@ describe 'branch', () ->
   describe 'merge', () ->
     it 'should merge two branches', (done) ->
       strategy = (path, value1Hash, value2Hash, cb) -> cb null, value2Hash
+      oldHead = testBranchA.head
       testBranchA.merge branch: testBranchB, strategy: strategy, (err, head) ->
-        testBranchA.diff head, (err, res) ->
+        store.diff oldHead, head, (err, res) ->
           for each in dataB
             for key, value of each
               assert.ok (res.data[key] == hash JSON.stringify value) or (res.data[key] == undefined)
