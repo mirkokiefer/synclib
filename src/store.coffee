@@ -1,5 +1,4 @@
 
-computeHash = require('./utils').hash
 async = require 'async'
 _ = require 'underscore'
 union = _.union
@@ -7,6 +6,9 @@ values = _.values
 keys = _.keys
 intersection = _.intersection
 clone = _.clone
+
+computeHash = require('./utils').hash
+Branch = require './branch'
 
 serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
@@ -179,6 +181,7 @@ class BackendWrapper
 
 class Store
   constructor: (backend) -> @backend = new BackendWrapper backend
+  branch: (hash) -> new Branch this, hash
   commit: (oldTree, data, cb) -> commit oldTree, data, @backend, cb
   read: (tree, path, cb) ->
     path = path.split('/').reverse()

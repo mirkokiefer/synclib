@@ -1,20 +1,14 @@
 
 assert = require 'assert'
-Branch = require('../lib/branch');
-Store = require('../lib/store')
-FileSystem = require('../lib/backends').FileSystem
-Memory = require('../lib/backends').Memory
+{Store, backend} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
 hash = require('../lib/utils').hash
 
 home = process.env.HOME
-store = new Store(new FileSystem(home+'/test1'))
-#store = new Store(new Memory())
-testBranchA = new Branch (store)
-testBranchB = new Branch (store)
-testBranchC = new Branch (store)
-testBranchD = new Branch (store)
+#store = new Store(new backend.FileSystem(home+'/test1'))
+store = new Store(new backend.Memory())
+[testBranchA, testBranchB, testBranchC, testBranchD] = (store.branch() for each in [1,2,3,4])
 
 testData = (branch, data, cb) ->
   testEach = (each, cb) ->
