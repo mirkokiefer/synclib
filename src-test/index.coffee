@@ -24,10 +24,10 @@ commitData = ({branch, data, ref}, cb) ->
 readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> store.readData each, cb), cb
 readParents = (treeHash, cb) ->
   store.readTree treeHash, (err, tree) ->
-    if tree.parents.length == 0
+    if tree.ancestors.length == 0
       cb null, treeHash
     else
-      async.map tree.parents, readParents, (err, res) ->
+      async.map tree.ancestors, readParents, (err, res) ->
         cb null, [treeHash, res]
 dataA = [
   {'a': 1, 'b/c': 3, 'b/d': 4}
@@ -35,9 +35,9 @@ dataA = [
   {'b/e': 9}
 ]
 dataAHashes = [
-  '988ea78f5200c52f2fbe94c0fe1f47c7f2b82d3c'
-  '4652680140ae3c38eb2c83b60fcef8aef16e5e29'
-  '096d1a7cbc45a862b35389b907c57c5615d0b984'
+  '692a351a3f0ffdcc890fd9cf9d62e63019ca3631'
+  '74381a6e0e497d3c50b97907ad35e29ea091e711'
+  '8b189a86fb3b5840130f2bdf9b149891afc2d240'
 ]
 
 dataB = [
@@ -95,8 +95,8 @@ describe 'branch', () ->
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[1][key])
         assert.equal _.keys(diff.trees).length, 2
-        assert.equal diff.trees['b'], '084de2796dd543036931c936744c1b17ac8b26ae'
-        assert.equal diff.trees['b/f'], '89d8b6cb2c831c292d6430c52abe5f7d96344b37'
+        assert.equal diff.trees['b'], '87620caa4c53d422ad3a491c511b700e1cd741c8'
+        assert.equal diff.trees['b/f'], '4d42003953369bfb8978ba0902311b2cac7d4680'
         done()
     it 'should find the diff between null and a tree', (done) ->
       store.diff null, dataAHashes[0], (err, diff) ->

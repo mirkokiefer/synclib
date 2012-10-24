@@ -14,7 +14,7 @@ serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
   obj.childTrees = sort(_.pairs obj.childTrees)
   obj.childData = sort(_.pairs obj.childData)
-  obj.parents = obj.parents.sort()
+  obj.ancestors = obj.ancestors.sort()
   sorted = sort(_.pairs obj)
   JSON.stringify sorted
 deserialize = (string) ->
@@ -24,8 +24,8 @@ deserialize = (string) ->
   parsed
 
 class Tree
-  constructor: ({parents, childTrees, childData}={}) ->
-    @parents = if parents then parents else []
+  constructor: ({ancestors, childTrees, childData}={}) ->
+    @ancestors = if ancestors then ancestors else []
     @childTrees = if childTrees then childTrees else {}
     @childData = if childData then childData else {}
 
@@ -41,11 +41,11 @@ commit = (treeHash, data, store, cb) ->
     storedData = ({path: each.path.split('/').reverse(), hash: each.hash} for each in storedData)
     commitWithStoredData treeHash, storedData, store, (err, hash) ->
       if hash then cb null, hash
-      else store.writeTree (new Tree parents: [treeHash]), cb
+      else store.writeTree (new Tree ancestors: [treeHash]), cb
 
 commitWithStoredData = (treeHash, data, store, cb) ->
   readTree(store) treeHash, (err, tree) ->
-    newTree = if tree then new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), parents:[treeHash]
+    newTree = if tree then new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), ancestors:[treeHash]
     else new Tree()
     childTreeData = {}
     for {path, hash} in data
@@ -74,9 +74,9 @@ read = (treeHash, store, path, cb) ->
       if path.length == 0 then store.readData tree.childData[key], cb
       else read tree.childTrees[key], store, path, cb
 
-treeParents = (treeHash, store, cb) -> readTree(store) treeHash, (err, tree) -> cb(null, tree.parents)
+treeParents = (treeHash, store, cb) -> readTree(store) treeHash, (err, tree) -> cb(null, tree.ancestors)
 treesParents = (store) -> (trees, cb) ->
-  reduceFun = (memo, each, cb) -> treeParents each, store, (err, parents) -> cb(null, memo.concat parents)
+  reduceFun = (memo, each, cb) -> treeParents each, store, (err, ancestors) -> cb(null, memo.concat ancestors)
   async.reduce trees, [], reduceFun, cb
 
 findCommonCommit = (trees1, trees2, store, cb) ->
@@ -128,12 +128,12 @@ findDiffSince = (positions, oldTrees, store, cb) ->
     merge = (diff, cb) -> (err, newDiff) ->
       cb null, trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
     reduceFun = (diff, eachPosition, cb) ->
-      treeParents eachPosition, store, (err, parents) ->
-        if parents.length > 0
+      treeParents eachPosition, store, (err, ancestors) ->
+        if ancestors.length > 0
           reduceFun = (diff, eachParent, cb) ->
             findDiff eachParent, eachPosition, store, merge(diff, cb)
-          async.reduce parents, diff, reduceFun, (err, diff) ->
-            findDiffSince parents, oldTrees, store, merge(diff, cb)
+          async.reduce ancestors, diff, reduceFun, (err, diff) ->
+            findDiffSince ancestors, oldTrees, store, merge(diff, cb)
         else findDiff null, eachPosition, store, merge(diff, cb)         
     async.reduce positions, {trees: [], data: []}, reduceFun, cb
 
@@ -145,8 +145,8 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
       commonTree = if commonTree then commonTree else new Tree()
       tree1 = if tree1 then tree1 else new Tree()
       tree2 = if tree2 then tree2 else new Tree()
-      parents = (each for each in [tree1Hash, tree2Hash] when each)
-      newTree = new Tree parents: parents
+      ancestors = (each for each in [tree1Hash, tree2Hash] when each)
+      newTree = new Tree ancestors: ancestors
       mergeData = (cb) ->
         each = (key, cb) ->
           commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
