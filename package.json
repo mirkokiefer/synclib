@@ -15,9 +15,10 @@
     "mocha": "*"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha"
+    "test": "./node_modules/.bin/mocha",
+    "build": "coffee -o ./lib -c ./src/*"
   },
-  "main": "lib/store",
+  "main": "lib/index",
   "directories": {
     "lib": "lib",
     "example": "examples",
