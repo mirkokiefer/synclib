@@ -1,6 +1,7 @@
 
 assert = require 'assert'
 {Store, backend} = require '../lib/index'
+backend = backend.server()
 async = require 'async'
 _ = require 'underscore'
 hash = require('../lib/utils').hash
