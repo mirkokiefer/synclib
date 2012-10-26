@@ -4,6 +4,7 @@ module.exports =
   backend:
     browser: ->
       Memory: require './backends/memory'
+      LocalStorage: require './backends/localstorage'
     server: ->
       Memory: require './backends/memory'
       FileSystem: require './backends/filesystem'
