@@ -7,13 +7,12 @@
     "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)"
   ],
   "dependencies": {
-    "async": "*",
-    "underscore": "*",
-    "livelyutils": "*",
+    "async": "~0.1.22",
+    "underscore": "~1.4.1",
     "sha1": "~1.0.0"
   },
   "devDependencies": {
-    "mocha": "*"
+    "mocha": "~1.6.0"
   },
   "scripts": {
     "test": "./node_modules/.bin/mocha",
