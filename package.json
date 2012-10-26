@@ -9,7 +9,8 @@
   "dependencies": {
     "async": "*",
     "underscore": "*",
-    "livelyutils": "*"
+    "livelyutils": "*",
+    "sha1": "~1.0.0"
   },
   "devDependencies": {
     "mocha": "*"
