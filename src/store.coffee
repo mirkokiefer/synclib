@@ -10,6 +10,8 @@ clone = _.clone
 computeHash = require('./utils').hash
 Branch = require './branch'
 
+flattenResults = (cb) -> (err, results) -> cb null, _.flatten results
+
 serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
   obj.childTrees = sort(_.pairs obj.childTrees)
@@ -76,8 +78,7 @@ read = (treeHash, store, path, cb) ->
 
 treeParents = (treeHash, store, cb) -> readTree(store) treeHash, (err, tree) -> cb(null, tree.ancestors)
 treesParents = (store) -> (trees, cb) ->
-  reduceFun = (memo, each, cb) -> treeParents each, store, (err, ancestors) -> cb(null, memo.concat ancestors)
-  async.reduce trees, [], reduceFun, cb
+  async.map trees, ((each, cb) -> treeParents each, store, cb), flattenResults cb
 
 findCommonCommit = (trees1, trees2, store, cb) ->
   if (trees1.current.length == 0) and (trees2.current.length == 0)
@@ -125,17 +126,21 @@ findDiffSince = (positions, oldTrees, store, cb) ->
     oldTrees = _.without oldTrees, each
   if (oldTrees.length == 0) or (positions.length == 0) then cb null, {trees: [], data: []}
   else
-    merge = (diff, cb) -> (err, newDiff) ->
+    mergeDiff = (diff, cb) -> (err, newDiff) ->
       cb null, trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
-    reduceFun = (diff, eachPosition, cb) ->
+    mergeDiffs = (cb) -> (err, newDiffs) ->
+      reduceFun = (previous, current) ->
+        trees: union(previous.trees, current.trees), data: union(previous.data, current.data)
+      cb null, (newDiffs.reduce reduceFun, {trees: [], data: []})
+    mapFun = (eachPosition, cb) ->
       treeParents eachPosition, store, (err, ancestors) ->
         if ancestors.length > 0
-          reduceFun = (diff, eachParent, cb) ->
-            findDiff eachParent, eachPosition, store, merge(diff, cb)
-          async.reduce ancestors, diff, reduceFun, (err, diff) ->
-            findDiffSince ancestors, oldTrees, store, merge(diff, cb)
-        else findDiff null, eachPosition, store, merge(diff, cb)         
-    async.reduce positions, {trees: [], data: []}, reduceFun, cb
+          collectParentDiff = (eachParent, cb) ->
+            findDiff eachParent, eachPosition, store, cb
+          async.map ancestors, collectParentDiff, mergeDiffs (err, diff) ->
+            findDiffSince ancestors, oldTrees, store, (mergeDiff diff, cb)
+        else findDiff null, eachPosition, store, cb
+    async.map positions, mapFun, mergeDiffs cb
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
