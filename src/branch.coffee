@@ -9,7 +9,7 @@ class Branch
     @store.commit @head, data, (err, newHead) ->
       obj.head = newHead
       cb err, newHead
-  read: (path, cb) -> @store.read @head, path, cb
+  dataAtPath: (path, cb) -> @store.dataAtPath @head, path, cb
   commonCommit: (branch, cb) -> @store.commonCommit @head, branch.head, cb
   diff: (branch, cb) -> @store.diff @head, branch.head, cb
   diffSince: (trees, cb) -> @store.diffSince [@head], trees, cb

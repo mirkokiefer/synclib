@@ -13,7 +13,7 @@ store = new Store(new backend.Memory())
 
 testData = (branch, data, cb) ->
   testEach = (each, cb) ->
-    branch.read each, (err, value) ->
+    branch.dataAtPath each, (err, value) ->
       assert.equal value, data[each]
       cb()
   async.forEach _.keys(data), testEach, cb
@@ -22,9 +22,9 @@ commitData = ({branch, data, ref}, cb) ->
   branch.head = ref
   async.forEachSeries data, ((each, cb) -> branch.commit each, cb), cb
 
-readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> store.readData each, cb), cb
+readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> store.dataAtPathData each, cb), cb
 readParents = (treeHash, cb) ->
-  store.readTree treeHash, (err, tree) ->
+  store.dataAtPathTree treeHash, (err, tree) ->
     if tree.ancestors.length == 0
       cb null, treeHash
     else
@@ -61,18 +61,18 @@ describe 'branch', () ->
       testBranchA.commit dataA[1], (err, head) ->
         assert.equal head, dataAHashes[1]
         testData testBranchA, dataA[1], () ->
-          testBranchA.read 'b/d', (err, d) ->
+          testBranchA.dataAtPath 'b/d', (err, d) ->
             assert.equal d, dataA[0]['b/d']
             done()
     it 'should read from a previous commit', (done) ->
       head1 = testBranchA.head
       testBranchA.commit dataA[2], (err, head2) ->
         assert.equal head2, dataAHashes[2]
-        store.read head1, 'b/e', (err, eHead1) ->
+        store.dataAtPath head1, 'b/e', (err, eHead1) ->
           assert.equal eHead1, dataA[1]['b/e']
-          store.read head2, 'b/e', (err, eHead2) ->
+          store.dataAtPath head2, 'b/e', (err, eHead2) ->
             assert.equal eHead2, dataA[2]['b/e']
-            testBranchA.read 'b/e', (err, eHead2) ->
+            testBranchA.dataAtPath 'b/e', (err, eHead2) ->
               assert.equal eHead2, dataA[2]['b/e']
               done()
     it 'should create a fork', (done) ->

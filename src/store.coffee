@@ -188,7 +188,7 @@ class Store
   constructor: (backend) -> @backend = new BackendWrapper backend
   branch: (hash) -> new Branch this, hash
   commit: (oldTree, data, cb) -> commit oldTree, data, @backend, cb
-  read: (tree, path, cb) ->
+  dataAtPath: (tree, path, cb) ->
     path = path.split('/').reverse()
     read tree, @backend, path, cb
   commonCommit: (tree1, tree2, cb) ->
