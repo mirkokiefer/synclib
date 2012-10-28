@@ -13,7 +13,7 @@ store = new Store(new backend.Memory())
 
 testData = (branch, data, cb) ->
   testEach = (each, cb) ->
-    branch.read path: each, (err, value) ->
+    branch.read each, (err, value) ->
       assert.equal value, data[each]
       cb()
   async.forEach _.keys(data), testEach, cb
@@ -61,18 +61,18 @@ describe 'branch', () ->
       testBranchA.commit dataA[1], (err, head) ->
         assert.equal head, dataAHashes[1]
         testData testBranchA, dataA[1], () ->
-          testBranchA.read path: 'b/d', (err, d) ->
+          testBranchA.read 'b/d', (err, d) ->
             assert.equal d, dataA[0]['b/d']
             done()
     it 'should read from a previous commit', (done) ->
       head1 = testBranchA.head
       testBranchA.commit dataA[2], (err, head2) ->
         assert.equal head2, dataAHashes[2]
-        testBranchA.read path: 'b/e', ref: head1, (err, eHead1) ->
+        store.read head1, 'b/e', (err, eHead1) ->
           assert.equal eHead1, dataA[1]['b/e']
-          testBranchA.read path: 'b/e', ref: head2, (err, eHead2) ->
+          store.read head2, 'b/e', (err, eHead2) ->
             assert.equal eHead2, dataA[2]['b/e']
-            testBranchA.read path: 'b/e', (err, eHead2) ->
+            testBranchA.read 'b/e', (err, eHead2) ->
               assert.equal eHead2, dataA[2]['b/e']
               done()
     it 'should create a fork', (done) ->
