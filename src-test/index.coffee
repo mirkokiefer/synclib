@@ -135,4 +135,9 @@ describe 'branch', () ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
       testBranchB.commit data, (err, head) ->
         testData testBranchB, data, done
+  describe 'treeAtPath', () ->
+    it 'should read the root tree', (done) ->
+      testBranchA.treeAtPath '', (err, tree) ->
+        assert.ok tree.childData
+        done()
 

@@ -68,6 +68,13 @@ commitWithStoredData = (treeHash, data, store, cb) ->
       if (_.size(newTree.childTrees) == 0) and (_.size(newTree.childData) == 0) then cb null, undefined
       else store.writeTree newTree, cb
 
+readTreeAtPath = (treeHash, store, path, cb) ->
+  store.readTree treeHash, (err, tree) ->
+    if path.length == 0 then cb null, tree
+    else
+      key = path.pop()
+      readTreeAtPath tree.childTrees[key], store, path, cb
+
 read = (treeHash, store, path, cb) ->
   if not treeHash then cb null, undefined
   else
@@ -188,6 +195,9 @@ class Store
   constructor: (backend) -> @backend = new BackendWrapper backend
   branch: (hash) -> new Branch this, hash
   commit: (oldTree, data, cb) -> commit oldTree, data, @backend, cb
+  treeAtPath: (tree, path, cb) ->
+    path = if path == '' then [] else path.split('/').reverse()
+    readTreeAtPath tree, @backend, path, cb    
   dataAtPath: (tree, path, cb) ->
     path = path.split('/').reverse()
     read tree, @backend, path, cb
