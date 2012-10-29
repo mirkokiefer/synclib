@@ -83,30 +83,31 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
     trees: _.extend(diff.trees, childDiff.trees), data: _.extend(diff.data, childDiff.data)
   _.keys(diff.trees).reduce mapChildTree, diff
 
-findDiff = (tree1Hash, tree2Hash, store, cb) ->
-  findDiffWithPaths tree1Hash, tree2Hash, store, (err, res) -> cb null, trees: values(res.trees), data: values(res.data)
+findDiff = (tree1Hash, tree2Hash, store) ->
+  res = findDiffWithPaths tree1Hash, tree2Hash, store
+  trees: values(res.trees), data: values(res.data)
 
-findDiffSince = (positions, oldTrees, store, cb) ->
+findDiffSince = (positions, oldTrees, treeStore) ->
   for each in oldTrees when _.contains positions, each
     positions = _.without positions, each
     oldTrees = _.without oldTrees, each
-  if (oldTrees.length == 0) or (positions.length == 0) then cb null, {trees: [], data: []}
+  if (oldTrees.length == 0) or (positions.length == 0) then return {trees: [], data: []}
   else
-    mergeDiff = (diff, cb) -> (err, newDiff) ->
-      cb null, trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
-    mergeDiffs = (cb) -> (err, newDiffs) ->
+    mergeDiff = (diff, newDiff) ->
+      trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
+    mergeDiffs = (newDiffs) ->
       reduceFun = (previous, current) ->
         trees: union(previous.trees, current.trees), data: union(previous.data, current.data)
-      cb null, (newDiffs.reduce reduceFun, {trees: [], data: []})
-    mapFun = (eachPosition, cb) ->
-      treeParents eachPosition, store, (err, ancestors) ->
-        if ancestors.length > 0
-          collectParentDiff = (eachParent, cb) ->
-            findDiff eachParent, eachPosition, store, cb
-          async.map ancestors, collectParentDiff, mergeDiffs (err, diff) ->
-            findDiffSince ancestors, oldTrees, store, (mergeDiff diff, cb)
-        else findDiff null, eachPosition, store, cb
-    async.map positions, mapFun, mergeDiffs cb
+      newDiffs.reduce reduceFun, {trees: [], data: []}
+    mapFun = (eachPosition) ->
+      ancestors = treeParents eachPosition, treeStore
+      if ancestors.length > 0
+        collectParentDiff = (eachParent) ->
+          findDiff eachParent, eachPosition, treeStore
+        diff = mergeDiffs ancestors.map collectParentDiff
+        mergeDiff diff, findDiffSince ancestors, oldTrees, treeStore
+      else findDiff null, eachPosition, treeStore
+    mergeDiffs positions.map mapFun
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)

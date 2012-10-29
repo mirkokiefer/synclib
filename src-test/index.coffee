@@ -89,19 +89,16 @@ describe 'branch', () ->
     it 'should find the diff between the current head and another tree', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
-  ###describe 'diffSince', () ->
-    it 'should find the diff between trees in the past and the current head', (done) ->
-      testBranchA.diffSince [dataAHashes[0]], (err, diff) ->
-        realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
-        realDataHashs = (hash JSON.stringify(each) for each in realData)
-        assert.equal _.intersection(diff.data, realDataHashs).length, realData.length
-        done()
-    it 'should find the diff between a tree in the past that doesnt exist and the current head', (done) ->
-      testBranchA.diffSince [null], (err, diff) ->
-        realDataHashs = (hash JSON.stringify(each) for each in _.values(dataA[0]))
-        assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
-        done()
-  describe 'merge', () ->
+  describe 'diffSince', () ->
+    it 'should find the diff between trees in the past and the current head', () ->
+      diff = testBranchA.diffSince [dataAHashes[0]]
+      realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
+      assert.equal _.intersection(diff.data, realData).length, realData.length
+    it 'should find the diff between a tree in the past that doesnt exist and the current head', () ->
+      diff = testBranchA.diffSince [null]
+      realDataHashs = _.values(dataA[0])
+      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+  ###describe 'merge', () ->
     it 'should merge two branches', (done) ->
       strategy = (path, value1Hash, value2Hash, cb) -> cb null, value2Hash
       oldHead = testBranchA.head
