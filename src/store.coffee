@@ -11,10 +11,6 @@ class Tree
     @childTrees = if childTrees then childTrees else {}
     @childData = if childData then childData else {}
 
-readTree = (store) -> (hash, cb) ->
-  if not hash then cb null, undefined
-  else store.readTree hash, (err, data) -> cb null, new Tree data
-
 splitCurrentAndChildTreeData = (data) ->
   currentTreeData = {}
   childTreeData = {}
@@ -59,7 +55,7 @@ read = (treeHash, treeStore, path) ->
     else read tree.childTrees[key], treeStore, path
 
 treeParents = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
-treesParents = (treeStore) -> (trees, cb) -> _.flatten (treeParents each, treeStore for each in trees)
+treesParents = (treeStore) -> (trees) -> _.flatten (treeParents each, treeStore for each in trees)
 
 findCommonCommit = (trees1, trees2, treeStore) ->
   if (trees1.current.length == 0) and (trees2.current.length == 0) then return undefined
@@ -104,34 +100,30 @@ findDiffSince = (positions, oldTrees, treeStore) ->
       else mergeDiff diff, findDiff(null, eachPosition, treeStore)
     positions.reduce reduceFun, {trees: [], data: []}
 
-mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
+mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
-  if not conflict then cb null, (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
+  if not conflict then (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
   else
-    async.map [commonTreeHash, tree1Hash, tree2Hash], readTree(store), (err, [commonTree, tree1, tree2]) ->
-      commonTree = if commonTree then commonTree else new Tree()
-      tree1 = if tree1 then tree1 else new Tree()
-      tree2 = if tree2 then tree2 else new Tree()
-      ancestors = (each for each in [tree1Hash, tree2Hash] when each)
-      newTree = new Tree ancestors: ancestors
-      mergeData = (cb) ->
-        each = (key, cb) ->
-          commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
-          conflict = (commonData != data1) and (commonData != data2)
-          if conflict
-            strategy key, data1, data2, (err, res) -> newTree.childData[key] = res; cb()
-          else
-            newTree.childData[key] = if data1 == commonData then data2 else data1
-            cb()
-        async.forEach union(keys(tree2.childData), keys(tree1.childData)), each, cb
-      mergeChildTrees = (cb) ->
-        each = (key, cb) ->
-          mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, store, (err, res) ->
-            newTree.childTrees[key] = res
-            cb()
-        async.forEach keys(tree2.childTrees), each, cb
-      async.parallel [mergeData, mergeChildTrees], () ->
-        store.writeTree newTree, cb
+    [commonTree, tree1, tree2] = (treeStore.read each for each in [commonTreeHash, tree1Hash, tree2Hash])
+    commonTree = if commonTree then commonTree else new Tree()
+    tree1 = if tree1 then tree1 else new Tree()
+    tree2 = if tree2 then tree2 else new Tree()
+    ancestors = (each for each in [tree1Hash, tree2Hash] when each)
+    newTree = new Tree ancestors: ancestors
+    mergeData = ->
+      for key in union(keys(tree2.childData), keys(tree1.childData))
+        commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
+        conflict = (commonData != data1) and (commonData != data2)
+        if conflict
+          newTree.childData[key] = strategy key, data1, data2
+        else
+          newTree.childData[key] = if data1 == commonData then data2 else data1
+    mergeChildTrees = ->
+      for key in keys(tree2.childTrees)
+        newTree.childTrees[key] = mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore
+    mergeData()
+    mergeChildTrees()
+    treeStore.write newTree
 
 class Repository
   constructor: (@treeStore) ->
@@ -150,12 +142,12 @@ class Repository
     findCommonCommit trees1, trees2, @treeStore
   diff: (tree1, tree2) -> findDiffWithPaths tree1, tree2, @treeStore
   diffSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
-  merge: (tree1, tree2, strategy, cb) ->
+  merge: (tree1, tree2, strategy) ->
     obj = this
     commonTree = @commonCommit tree1, tree2
-    if tree1 == commonTree then cb null, tree2
-    else if tree2 == commonTree then cb null, tree1
+    if tree1 == commonTree then tree2
+    else if tree2 == commonTree then tree1
     else
-      mergingCommit commonTree, tree1, tree2, strategy, obj.backend, cb
+      mergingCommit commonTree, tree1, tree2, strategy, @treeStore
 
 module.exports = Repository

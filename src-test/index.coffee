@@ -98,17 +98,16 @@ describe 'branch', () ->
       diff = testBranchA.diffSince [null]
       realDataHashs = _.values(dataA[0])
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
-  ###describe 'merge', () ->
-    it 'should merge two branches', (done) ->
-      strategy = (path, value1Hash, value2Hash, cb) -> cb null, value2Hash
+  describe 'merge', () ->
+    it 'should merge two branches', () ->
+      strategy = (path, value1Hash, value2Hash) -> value2Hash
       oldHead = testBranchA.head
-      testBranchA.merge branch: testBranchB, strategy: strategy, (err, head) ->
-        repo.diff oldHead, head, (err, res) ->
-          for each in dataB
-            for key, value of each
-              assert.ok (res.data[key] == hash JSON.stringify value) or (res.data[key] == undefined)
-          done()
-  describe 'commit deletes', () ->
+      head = testBranchA.merge branch: testBranchB, strategy: strategy
+      diff = repo.diff oldHead, head
+      for each in dataB
+        for key, value of each
+          assert.ok (diff.data[key] == value) or (diff.data[key] == undefined)
+  ###describe 'commit deletes', () ->
     it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
       testBranchB.commit data, (err, head) ->
