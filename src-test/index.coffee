@@ -65,17 +65,15 @@ describe 'branch', () ->
         branch.head = ref
         branch.commit each for each in data
       commitData each for each in [commitB, commitC]
-  ###describe 'commonCommit', () ->
+  describe 'commonCommit', () ->
     # should maybe output the path as well
-    it 'should find a common commit', (done) ->
-      testBranchA.commonCommit testBranchB, (err, res) ->
-        assert.equal res, dataAHashes[1]
-        done()
-    it 'should not find a common commit', (done) ->
-      testBranchA.commonCommit testBranchC, (err, res) ->
-        assert.equal res, undefined
-        done()
-  describe 'diff', () ->
+    it 'should find a common commit', ->
+      res = testBranchA.commonCommit testBranchB
+      assert.equal res, dataAHashes[1]
+    it 'should not find a common commit', ->
+      res = testBranchA.commonCommit testBranchC
+      assert.equal res, undefined
+  ###describe 'diff', () ->
     it 'should find the diff between two trees', (done) ->
       repo.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
         assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length

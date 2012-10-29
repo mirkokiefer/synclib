@@ -7,7 +7,7 @@ class Branch
   commit: (data) -> @head = @store.commit @head, data
   treeAtPath: (path, cb) -> @store.treeAtPath @head, path, cb
   dataAtPath: (path) -> @store.dataAtPath @head, path
-  commonCommit: (branch, cb) -> @store.commonCommit @head, branch.head, cb
+  commonCommit: (branch) -> @store.commonCommit @head, branch.head
   diff: (branch, cb) -> @store.diff @head, branch.head, cb
   diffSince: (trees, cb) -> @store.diffSince [@head], trees, cb
   merge: ({branch, strategy}, cb) ->

@@ -9,8 +9,6 @@ clone = _.clone
 
 Branch = require './branch'
 
-flattenResults = (cb) -> (err, results) -> cb null, _.flatten results
-
 class Tree
   constructor: ({ancestors, childTrees, childData}={}) ->
     @ancestors = if ancestors then ancestors else []
@@ -64,21 +62,17 @@ read = (treeHash, treeStore, path) ->
     if path.length == 0 then tree.childData[key]
     else read tree.childTrees[key], treeStore, path
 
-treeParents = (treeHash, store, cb) -> readTree(store) treeHash, (err, tree) -> cb(null, tree.ancestors)
-treesParents = (store) -> (trees, cb) ->
-  async.map trees, ((each, cb) -> treeParents each, store, cb), flattenResults cb
+treeParents = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
+treesParents = (treeStore) -> (trees, cb) -> _.flatten (treeParents each, treeStore for each in trees)
 
-findCommonCommit = (trees1, trees2, store, cb) ->
-  if (trees1.current.length == 0) and (trees2.current.length == 0)
-    cb null, undefined
-    return
+findCommonCommit = (trees1, trees2, treeStore) ->
+  if (trees1.current.length == 0) and (trees2.current.length == 0) then return undefined
   for [trees1, trees2] in [[trees1, trees2], [trees2, trees1]]
     for each in trees1.current when _.contains trees2.visited.concat(trees2.current), each
-      cb null, each
-      return
-  async.map [trees1.current, trees2.current], treesParents(store), (err, [trees1Parents, trees2Parents]) ->
-    merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
-    findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), store, cb
+      return each
+  [trees1Parents, trees2Parents] = [trees1.current, trees2.current].map treesParents(treeStore)
+  merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
+  findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
 
 findDiffWithPaths = (tree1Hash, tree2Hash, store, cb) ->
   if tree1Hash == tree2Hash
