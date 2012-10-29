@@ -39,12 +39,12 @@ commit = (treeHash, data, treeStore) ->
   if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
     treeStore.write currentTree
 
-readTreeAtPath = (treeHash, store, path, cb) ->
-  store.readTree treeHash, (err, tree) ->
-    if path.length == 0 then cb null, tree
-    else
-      key = path.pop()
-      readTreeAtPath tree.childTrees[key], store, path, cb
+readTreeAtPath = (treeHash, treeStore, path) ->
+  tree = treeStore.read treeHash
+  if path.length == 0 then tree
+  else
+    key = path.pop()
+    readTreeAtPath tree.childTrees[key], treeStore, path
 
 read = (treeHash, treeStore, path) ->
   if not treeHash then undefined
