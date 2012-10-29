@@ -1,12 +1,8 @@
 
 async = require 'async'
 _ = require 'underscore'
-union = _.union
-values = _.values
-keys = _.keys
-intersection = _.intersection
-clone = _.clone
-
+{union, values, keys, intersection, clone} = _
+{objectDiff, objectDiffObject, addKeyPrefix} = require './utils'
 Branch = require './branch'
 
 class Tree
@@ -79,21 +75,12 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
   [tree1, tree2] = for each in [tree1Hash, tree2Hash]
     if each then treeStore.read each else new Tree()
   diff = data: {}, trees: {}
-  for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
-    diff.trees[key] = childTree
-  for key, data of tree2.childData when tree1.childData[key] != data
-    diff.data[key] = data
-  for key, childTree of tree1.childTrees when tree2.childTrees[key] == undefined
-    diff.trees[key] = null
-  for key, data of tree1.childData when tree2.childData[key] == undefined
-    diff.data[key] = null
+  diff.trees = objectDiffObject tree1.childTrees, tree2.childTrees
+  diff.data = objectDiffObject tree1.childData, tree2.childData
   mapChildTree = (diff, key) ->
     childDiff = findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore
-    for childKey, childTree of childDiff.trees
-      diff.trees[key+'/'+childKey] = childTree
-    for childKey, childData of childDiff.data
-      diff.data[key+'/'+childKey] = childData
-    diff
+    addKeyPrefix each, key+'/' for each in [childDiff.data, childDiff.trees]
+    trees: _.extend(diff.trees, childDiff.trees), data: _.extend(diff.data, childDiff.data)
   _.keys(diff.trees).reduce mapChildTree, diff
 
 findDiff = (tree1Hash, tree2Hash, store, cb) ->
