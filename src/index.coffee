@@ -1,6 +1,7 @@
 
 module.exports =
-  Store: require './store'
+  Repository: require './store'
+  TreeStore: require './tree-store'
   backend:
     browser: ->
       Memory: require './backends/memory'

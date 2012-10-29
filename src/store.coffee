@@ -7,23 +7,9 @@ keys = _.keys
 intersection = _.intersection
 clone = _.clone
 
-computeHash = require('./utils').hash
 Branch = require './branch'
 
 flattenResults = (cb) -> (err, results) -> cb null, _.flatten results
-
-serialize = (obj) ->
-  sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
-  obj.childTrees = sort(_.pairs obj.childTrees)
-  obj.childData = sort(_.pairs obj.childData)
-  obj.ancestors = obj.ancestors.sort()
-  sorted = sort(_.pairs obj)
-  JSON.stringify sorted
-deserialize = (string) ->
-  parsed = _.object JSON.parse(string)
-  parsed.childTrees = _.object parsed.childTrees
-  parsed.childData = _.object parsed.childData
-  parsed
 
 class Tree
   constructor: ({ancestors, childTrees, childData}={}) ->
@@ -35,38 +21,33 @@ readTree = (store) -> (hash, cb) ->
   if not hash then cb null, undefined
   else store.readTree hash, (err, data) -> cb null, new Tree data
 
-commit = (treeHash, data, store, cb) ->
-  map = (each, cb) ->
-    if each[1] == null then cb(null, path: each[0], hash: undefined)
-    else store.writeData each[1], (err, hash) -> cb null, path: each[0], hash: hash
-  async.map _.pairs(data), map, (err, storedData) ->
-    storedData = ({path: each.path.split('/').reverse(), hash: each.hash} for each in storedData)
-    commitWithStoredData treeHash, storedData, store, (err, hash) ->
-      if hash then cb null, hash
-      else store.writeTree (new Tree ancestors: [treeHash]), cb
+splitCurrentAndChildTreeData = (data) ->
+  currentTreeData = {}
+  childTreeData = {}
+  for {path, hash} in data
+    key = path.pop()
+    if path.length == 0 then currentTreeData[key] = hash
+    else
+      if not childTreeData[key] then childTreeData[key] = []
+      childTreeData[key].push {path, hash}
+  [currentTreeData, childTreeData]
 
-commitWithStoredData = (treeHash, data, store, cb) ->
-  readTree(store) treeHash, (err, tree) ->
-    newTree = if tree then new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), ancestors:[treeHash]
-    else new Tree()
-    childTreeData = {}
-    for {path, hash} in data
-      key = path.pop()
-      if path.length == 0
-        if hash then newTree.childData[key] = hash
-        else delete newTree.childData[key]
-      else
-        if not childTreeData[key] then childTreeData[key] = []
-        childTreeData[key].push {path, hash}
-    commitEachChildTree = (key, cb) ->
-      affectedTree = if tree then tree.childTrees[key]
-      commitWithStoredData affectedTree, childTreeData[key], store, (err, newChildTree) ->
-        if newChildTree then newTree.childTrees[key] = newChildTree
-        else delete newTree.childTrees[key]
-        cb()
-    async.forEach keys(childTreeData), commitEachChildTree, (err) ->
-      if (_.size(newTree.childTrees) == 0) and (_.size(newTree.childData) == 0) then cb null, undefined
-      else store.writeTree newTree, cb
+commit = (treeHash, data, treeStore) ->
+  currentTree = if treeHash
+    tree = treeStore.read treeHash
+    new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), ancestors:[treeHash]
+  else new Tree()
+  [currentTreeData, childTreeData] = splitCurrentAndChildTreeData data
+  for key, hash of currentTreeData
+    if hash then currentTree.childData[key]=hash
+    else delete currentTree.childData[key]
+  for key, data of childTreeData
+    previousTree = currentTree.childTrees[key]
+    newChildTree = commit previousTree, data, treeStore
+    if newChildTree then currentTree.childTrees[key] = newChildTree
+    else delete currentTree.childTrees[key]
+  if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
+    treeStore.write currentTree
 
 readTreeAtPath = (treeHash, store, path, cb) ->
   store.readTree treeHash, (err, tree) ->
@@ -75,13 +56,13 @@ readTreeAtPath = (treeHash, store, path, cb) ->
       key = path.pop()
       readTreeAtPath tree.childTrees[key], store, path, cb
 
-read = (treeHash, store, path, cb) ->
-  if not treeHash then cb null, undefined
+read = (treeHash, treeStore, path) ->
+  if not treeHash then undefined
   else
-    readTree(store) treeHash, (err, tree) ->
-      key = path.pop()
-      if path.length == 0 then store.readData tree.childData[key], cb
-      else read tree.childTrees[key], store, path, cb
+    tree = treeStore.read treeHash
+    key = path.pop()
+    if path.length == 0 then tree.childData[key]
+    else read tree.childTrees[key], treeStore, path
 
 treeParents = (treeHash, store, cb) -> readTree(store) treeHash, (err, tree) -> cb(null, tree.ancestors)
 treesParents = (store) -> (trees, cb) ->
@@ -178,40 +159,29 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, store, cb) ->
       async.parallel [mergeData, mergeChildTrees], () ->
         store.writeTree newTree, cb
 
-class BackendWrapper
-  constructor: (@backend) ->
-  writeTree: (tree, cb) ->
-    json = serialize tree
-    treeHash = computeHash json
-    @backend.writeTree treeHash, json, (err) -> cb null, treeHash
-  readTree: (hash, cb) -> @backend.readTree hash, (err, data) -> cb err, deserialize data
-  writeData: (data, cb) ->
-    json = JSON.stringify data
-    dataHash = computeHash json
-    @backend.writeData (dataHash), data, (err) -> cb null, dataHash
-  readData: (hash, cb) -> @backend.readData hash, cb
-
-class Store
-  constructor: (backend) -> @backend = new BackendWrapper backend
-  branch: (hash) -> new Branch this, hash
-  commit: (oldTree, data, cb) -> commit oldTree, data, @backend, cb
-  treeAtPath: (tree, path, cb) ->
+class Repository
+  constructor: (@treeStore) ->
+  branch: (treeHash) -> new Branch this, treeHash
+  commit: (oldTree, data) ->
+    parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
+    commit oldTree, parsedData, @treeStore
+  treeAtPath: (tree, path) ->
     path = if path == '' then [] else path.split('/').reverse()
-    readTreeAtPath tree, @backend, path, cb    
-  dataAtPath: (tree, path, cb) ->
+    readTreeAtPath tree, @treeStore, path    
+  dataAtPath: (tree, path) ->
     path = path.split('/').reverse()
-    read tree, @backend, path, cb
-  commonCommit: (tree1, tree2, cb) ->
+    read tree, @treeStore, path
+  commonCommit: (tree1, tree2) ->
     [trees1, trees2] = ({current: [each], visited: []} for each in [tree1, tree2])
-    findCommonCommit trees1, trees2, @backend, cb
-  diff: (tree1, tree2, cb) -> findDiffWithPaths tree1, tree2, @backend, cb
-  diffSince: (trees1, trees2, cb) -> findDiffSince trees1, trees2, @backend, cb
+    findCommonCommit trees1, trees2, @treeStore
+  diff: (tree1, tree2) -> findDiffWithPaths tree1, tree2, @treeStore
+  diffSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
   merge: (tree1, tree2, strategy, cb) ->
     obj = this
-    @commonCommit tree1, tree2, (err, commonTree) ->
-      if tree1 == commonTree then cb null, tree2
-      else if tree2 == commonTree then cb null, tree1
-      else
-        mergingCommit commonTree, tree1, tree2, strategy, obj.backend, cb
+    commonTree = @commonCommit tree1, tree2
+    if tree1 == commonTree then cb null, tree2
+    else if tree2 == commonTree then cb null, tree1
+    else
+      mergingCommit commonTree, tree1, tree2, strategy, obj.backend, cb
 
-module.exports = Store
+module.exports = Repository

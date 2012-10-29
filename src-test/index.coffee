@@ -1,51 +1,40 @@
 
 assert = require 'assert'
-{Store, backend} = require '../lib/index'
-backend = backend.server()
+{Repository, TreeStore} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-hash = require('../lib/utils').hash
 
-home = process.env.HOME
-#store = new Store(new backend.FileSystem(home+'/test1'))
-store = new Store(new backend.Memory())
-[testBranchA, testBranchB, testBranchC, testBranchD] = (store.branch() for each in [1,2,3,4])
+repo = new Repository new TreeStore
+[testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in [1,2,3,4])
 
-testData = (branch, data, cb) ->
-  testEach = (each, cb) ->
-    branch.dataAtPath each, (err, value) ->
-      assert.equal value, data[each]
-      cb()
-  async.forEach _.keys(data), testEach, cb
+testData = (branch, data) ->
+  for path, value of data
+    assert.equal branch.dataAtPath(path), value
 
-commitData = ({branch, data, ref}, cb) ->
-  branch.head = ref
-  async.forEachSeries data, ((each, cb) -> branch.commit each, cb), cb
-
-readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> store.dataAtPathData each, cb), cb
+readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> repo.dataAtPathData each, cb), cb
 readParents = (treeHash, cb) ->
-  store.dataAtPathTree treeHash, (err, tree) ->
+  repo.dataAtPathTree treeHash, (err, tree) ->
     if tree.ancestors.length == 0
       cb null, treeHash
     else
       async.map tree.ancestors, readParents, (err, res) ->
         cb null, [treeHash, res]
 dataA = [
-  {'a': 1, 'b/c': 3, 'b/d': 4}
-  {'a': 3, 'b/c': 4, 'b/e': 2, 'b/f/g': 7}
-  {'b/e': 9}
+  {'a': "hash1", 'b/c': "hash2", 'b/d': "hash3"}
+  {'a': "hash4", 'b/c': "hash5", 'b/e': "hash6", 'b/f/g': "hash7"}
+  {'b/e': "hash8"}
 ]
 dataAHashes = [
-  '692a351a3f0ffdcc890fd9cf9d62e63019ca3631'
-  '74381a6e0e497d3c50b97907ad35e29ea091e711'
-  '8b189a86fb3b5840130f2bdf9b149891afc2d240'
+  '9a3b879755108b450eddf5f035fdc149838f4bec'
+  'd19c7dccb948ed962794de79d002525e9b0c9f7f'
+  'bdd6e36bdec4c962cbbd21085cd77d85125693db'
 ]
 
 dataB = [
-  {'b/h': 5}
-  {'c/a': 1}
-  {'a': 3, 'u': 7}
-  {'b/c': 5, 'b/e': 1, 'b/f/a': 9}
+  {'b/h': "hash9"}
+  {'c/a': "hash10"}
+  {'a': "hash11", 'u': "hash12"}
+  {'b/c': "hash13", 'b/e': "hash14", 'b/f/a': "hash15"}
 ]
 dataC = [dataB[0], dataB[1]]
 commitB = {data: dataB, ref: dataAHashes[1], branch: testBranchB}
@@ -53,33 +42,30 @@ commitC = {data: dataC, branch: testBranchC}
 
 describe 'branch', () ->
   describe 'commit', () ->
-    it 'should commit and read objects', (done) ->
-      testBranchA.commit dataA[0], (err, head) ->
-        assert.equal head, dataAHashes[0]
-        testData testBranchA, dataA[0], done
-    it 'should create a child commit', (done) ->
-      testBranchA.commit dataA[1], (err, head) ->
-        assert.equal head, dataAHashes[1]
-        testData testBranchA, dataA[1], () ->
-          testBranchA.dataAtPath 'b/d', (err, d) ->
-            assert.equal d, dataA[0]['b/d']
-            done()
-    it 'should read from a previous commit', (done) ->
+    it 'should commit and read objects', () ->
+      head = testBranchA.commit dataA[0]
+      assert.equal head, dataAHashes[0]
+      testData testBranchA, dataA[0]
+    it 'should create a child commit', () ->
+      head = testBranchA.commit dataA[1]
+      testData testBranchA, dataA[1]
+      d = testBranchA.dataAtPath 'b/d'
+      assert.equal d, dataA[0]['b/d']
+    it 'should read from a previous commit', () ->
       head1 = testBranchA.head
-      testBranchA.commit dataA[2], (err, head2) ->
-        assert.equal head2, dataAHashes[2]
-        store.dataAtPath head1, 'b/e', (err, eHead1) ->
-          assert.equal eHead1, dataA[1]['b/e']
-          store.dataAtPath head2, 'b/e', (err, eHead2) ->
-            assert.equal eHead2, dataA[2]['b/e']
-            testBranchA.dataAtPath 'b/e', (err, eHead2) ->
-              assert.equal eHead2, dataA[2]['b/e']
-              done()
-    it 'should create a fork', (done) ->
-      commitData commitB, done
-    it 'should populate more test branches', (done) ->
-      async.forEach [commitC], commitData, done
-  describe 'commonCommit', () ->
+      head2 = testBranchA.commit dataA[2]
+      eHead1 = repo.dataAtPath head1, 'b/e'
+      assert.equal eHead1, dataA[1]['b/e']
+      eHead2 = repo.dataAtPath head2, 'b/e'
+      assert.equal eHead2, dataA[2]['b/e']
+      eHead2 = testBranchA.dataAtPath 'b/e'
+      assert.equal eHead2, dataA[2]['b/e']
+    it 'should populate more test branches', () ->
+      commitData = ({branch, data, ref}) ->
+        branch.head = ref
+        branch.commit each for each in data
+      commitData each for each in [commitB, commitC]
+  ###describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', (done) ->
       testBranchA.commonCommit testBranchB, (err, res) ->
@@ -91,7 +77,7 @@ describe 'branch', () ->
         done()
   describe 'diff', () ->
     it 'should find the diff between two trees', (done) ->
-      store.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
+      repo.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
         assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[1][key])
@@ -100,7 +86,7 @@ describe 'branch', () ->
         assert.equal diff.trees['b/f'], '4d42003953369bfb8978ba0902311b2cac7d4680'
         done()
     it 'should find the diff between null and a tree', (done) ->
-      store.diff null, dataAHashes[0], (err, diff) ->
+      repo.diff null, dataAHashes[0], (err, diff) ->
         for key, data of diff.data
           assert.equal data, hash JSON.stringify(dataA[0][key])
         done()
@@ -125,7 +111,7 @@ describe 'branch', () ->
       strategy = (path, value1Hash, value2Hash, cb) -> cb null, value2Hash
       oldHead = testBranchA.head
       testBranchA.merge branch: testBranchB, strategy: strategy, (err, head) ->
-        store.diff oldHead, head, (err, res) ->
+        repo.diff oldHead, head, (err, res) ->
           for each in dataB
             for key, value of each
               assert.ok (res.data[key] == hash JSON.stringify value) or (res.data[key] == undefined)
