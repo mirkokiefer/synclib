@@ -107,12 +107,12 @@ describe 'branch', () ->
       for each in dataB
         for key, value of each
           assert.ok (diff.data[key] == value) or (diff.data[key] == undefined)
-  ###describe 'commit deletes', () ->
-    it 'should delete data', (done) ->
+  describe 'commit deletes', ->
+    it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-      testBranchB.commit data, (err, head) ->
-        testData testBranchB, data, done
-  describe 'treeAtPath', () ->
+      testBranchB.commit data
+      testData testBranchB, data
+ ### describe 'treeAtPath', () ->
     it 'should read the root tree', (done) ->
       testBranchA.treeAtPath '', (err, tree) ->
         assert.ok tree.childData
