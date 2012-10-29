@@ -73,26 +73,23 @@ describe 'branch', () ->
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined
-  ###describe 'diff', () ->
-    it 'should find the diff between two trees', (done) ->
-      repo.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
-        assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
-        for key, data of diff.data
-          assert.equal data, hash JSON.stringify(dataA[1][key])
-        assert.equal _.keys(diff.trees).length, 2
-        assert.equal diff.trees['b'], '87620caa4c53d422ad3a491c511b700e1cd741c8'
-        assert.equal diff.trees['b/f'], '4d42003953369bfb8978ba0902311b2cac7d4680'
-        done()
-    it 'should find the diff between null and a tree', (done) ->
-      repo.diff null, dataAHashes[0], (err, diff) ->
-        for key, data of diff.data
-          assert.equal data, hash JSON.stringify(dataA[0][key])
-        done()
-    it 'should find the diff between the current head and another tree', (done) ->
-      testBranchA.diff testBranchB, (err, diff) ->
-        assert.ok diff
-        done()
-  describe 'diffSince', () ->
+  describe 'diff', () ->
+    it 'should find the diff between two trees', ->
+      diff = repo.diff dataAHashes[0], dataAHashes[1]
+      assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
+      for key, data of diff.data
+        assert.equal data, dataA[1][key]
+      assert.equal _.keys(diff.trees).length, 2
+      assert.equal diff.trees['b'], '60d7ae8d0d8ad666cb5155fbe015408b3055dd5b'
+      assert.equal diff.trees['b/f'], 'becb16e3c51e87c59dc8746ee084279dcc976c19'
+    it 'should find the diff between null and a tree', ->
+      diff = repo.diff null, dataAHashes[0]
+      for key, data of diff.data
+        assert.equal data, dataA[0][key]
+    it 'should find the diff between the current head and another tree', ->
+      diff = testBranchA.diff testBranchB
+      assert.ok diff
+  ###describe 'diffSince', () ->
     it 'should find the diff between trees in the past and the current head', (done) ->
       testBranchA.diffSince [dataAHashes[0]], (err, diff) ->
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]))

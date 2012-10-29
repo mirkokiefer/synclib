@@ -74,30 +74,27 @@ findCommonCommit = (trees1, trees2, treeStore) ->
   merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
   findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
 
-findDiffWithPaths = (tree1Hash, tree2Hash, store, cb) ->
-  if tree1Hash == tree2Hash
-    cb null, {trees: {}, data: {}}
-    return
-  async.map [tree1Hash, tree2Hash], readTree(store), (err, [tree1, tree2]) ->
-    tree1 = if tree1 then tree1 else new Tree()
-    tree2 = if tree2 then tree2 else new Tree()
-    diff = data: {}, trees: {}
-    for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
-      diff.trees[key] = childTree
-    for key, data of tree2.childData when tree1.childData[key] != data
-      diff.data[key] = data
-    for key, childTree of tree1.childTrees when tree2.childTrees[key] == undefined
-      diff.trees[key] = null
-    for key, data of tree1.childData when tree2.childData[key] == undefined
-      diff.data[key] = null
-    mapChildTree = (diff, key, cb) ->
-      findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], store, (err, childDiff) ->
-        for childKey, childTree of childDiff.trees
-          diff.trees[key+'/'+childKey] = childTree
-        for childKey, childData of childDiff.data
-          diff.data[key+'/'+childKey] = childData
-        cb null, diff
-    async.reduce _.keys(diff.trees), diff, mapChildTree, cb
+findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
+  if tree1Hash == tree2Hash then return trees: {}, data: {}
+  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
+    if each then treeStore.read each else new Tree()
+  diff = data: {}, trees: {}
+  for key, childTree of tree2.childTrees when tree1.childTrees[key] != childTree
+    diff.trees[key] = childTree
+  for key, data of tree2.childData when tree1.childData[key] != data
+    diff.data[key] = data
+  for key, childTree of tree1.childTrees when tree2.childTrees[key] == undefined
+    diff.trees[key] = null
+  for key, data of tree1.childData when tree2.childData[key] == undefined
+    diff.data[key] = null
+  mapChildTree = (diff, key) ->
+    childDiff = findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore
+    for childKey, childTree of childDiff.trees
+      diff.trees[key+'/'+childKey] = childTree
+    for childKey, childData of childDiff.data
+      diff.data[key+'/'+childKey] = childData
+    diff
+  _.keys(diff.trees).reduce mapChildTree, diff
 
 findDiff = (tree1Hash, tree2Hash, store, cb) ->
   findDiffWithPaths tree1Hash, tree2Hash, store, (err, res) -> cb null, trees: values(res.trees), data: values(res.data)
