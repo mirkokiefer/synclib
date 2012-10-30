@@ -1,5 +1,5 @@
 {
-  "name": "NodeStore",
+  "name": "synclib",
   "description": "A distributed document store",
   "version": "0.1.0",
   "author": "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)",
