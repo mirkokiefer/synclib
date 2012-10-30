@@ -1,4 +1,4 @@
-#NodeStore
+#synclib
 A distributed document store.
 
 ##So whats our architecture?
@@ -7,4 +7,3 @@ A distributed document store.
 * Tree store: an in-memory store for storing all meta data for tracking
 * Repository: an interface to commit, read, diff and merge - talks only to Tree store
 * Replicator: an interface to manage replication of diffs across stores (Blob and Tree store)
-
