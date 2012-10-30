@@ -16,7 +16,7 @@
   },
   "scripts": {
     "test": "./node_modules/.bin/mocha",
-    "build": "coffee -o ./lib -c ./src/*"
+    "build": "coffee -o ./lib -c ./src"
   },
   "main": "lib/index",
   "directories": {
