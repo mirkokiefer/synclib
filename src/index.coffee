@@ -1,6 +1,6 @@
 
 module.exports =
-  Repository: require './store'
+  Repository: require './repository'
   TreeStore: require './tree-store'
   backend:
     browser: ->
