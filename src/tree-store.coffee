@@ -23,5 +23,7 @@ class TrackingStore
     @_data[treeHash] = json
     treeHash
   read: (hash) -> deserialize @_data[hash]
+  readAll: (hashs) -> @read each for each in hashs
+  writeAll: (trees) -> @write each for each in trees
 
 module.exports = TrackingStore
