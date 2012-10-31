@@ -187,16 +187,16 @@
         return assert.ok(diff);
       });
     });
-    describe('diffSince', function() {
+    describe('patchSince', function() {
       it('should find the diff between trees in the past and the current head', function() {
         var diff, realData;
-        diff = testBranchA.diffSince([dataAHashes[0]]);
+        diff = testBranchA.patchSince([dataAHashes[0]]);
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]));
         return assert.equal(_.intersection(diff.data, realData).length, realData.length);
       });
       return it('should find the diff between a tree in the past that doesnt exist and the current head', function() {
         var diff, realDataHashs;
-        diff = testBranchA.diffSince([null]);
+        diff = testBranchA.patchSince([null]);
         realDataHashs = _.values(dataA[0]);
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });

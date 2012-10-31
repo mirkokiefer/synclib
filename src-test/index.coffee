@@ -89,13 +89,13 @@ describe 'branch', () ->
     it 'should find the diff between the current head and another tree', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
-  describe 'diffSince', () ->
+  describe 'patchSince', () ->
     it 'should find the diff between trees in the past and the current head', () ->
-      diff = testBranchA.diffSince [dataAHashes[0]]
+      diff = testBranchA.patchSince [dataAHashes[0]]
       realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realData).length, realData.length
     it 'should find the diff between a tree in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.diffSince [null]
+      diff = testBranchA.patchSince [null]
       realDataHashs = _.values(dataA[0])
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
   describe 'merge', () ->
