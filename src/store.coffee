@@ -141,7 +141,7 @@ class Repository
     [trees1, trees2] = ({current: [each], visited: []} for each in [tree1, tree2])
     findCommonCommit trees1, trees2, @treeStore
   diff: (tree1, tree2) -> findDiffWithPaths tree1, tree2, @treeStore
-  patchSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
+  patchHashsSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
   merge: (tree1, tree2, strategy) ->
     obj = this
     commonTree = @commonCommit tree1, tree2

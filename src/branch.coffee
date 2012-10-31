@@ -9,7 +9,7 @@ class Branch
   dataAtPath: (path) -> @store.dataAtPath @head, path
   commonCommit: (branch) -> @store.commonCommit @head, branch.head
   diff: (branch) -> @store.diff @head, branch.head
-  patchSince: (trees) -> @store.patchSince [@head], trees
+  patchHashsSince: (trees) -> @store.patchHashsSince [@head], trees
   merge: ({branch, strategy}, cb) ->
     obj = this
     @store.merge @head, branch.head, strategy, (err, head) ->
