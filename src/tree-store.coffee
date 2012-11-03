@@ -1,6 +1,8 @@
 
 _ = require 'underscore'
 computeHash = require('./utils').hash
+ContentAddressable = require('content-addressable')
+memoryStore = require('pluggable-store').server().memory
 
 serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
@@ -15,15 +17,15 @@ deserialize = (string) ->
   parsed.childData = _.object parsed.childData
   parsed
 
-class TrackingStore
-  _data: {}
+class TreeStore
+  constructor: -> @store = new ContentAddressable store: memoryStore()
   write: (tree) ->
     json = serialize tree
-    treeHash = computeHash json
-    @_data[treeHash] = json
-    treeHash
-  read: (hash) -> deserialize @_data[hash]
+    @store.write json
+  read: (hash) -> deserialize @store.read hash
   readAll: (hashs) -> @read each for each in hashs
   writeAll: (trees) -> @write each for each in trees
 
-module.exports = TrackingStore
+
+
+module.exports = TreeStore

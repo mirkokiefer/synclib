@@ -9,7 +9,8 @@
   "dependencies": {
     "async": "~0.1.22",
     "underscore": "~1.4.1",
-    "sha1": "~1.0.0"
+    "content-addressable": "*",
+    "pluggable-store": "*"
   },
   "devDependencies": {
     "mocha": "~1.6.0"
