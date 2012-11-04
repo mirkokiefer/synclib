@@ -1,8 +1,7 @@
 
 _ = require 'underscore'
 computeHash = require('./utils').hash
-ContentAddressable = require('content-addressable')
-memoryStore = require('pluggable-store').server().memory
+{memory} = require('content-addressable')
 
 serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
@@ -18,7 +17,7 @@ deserialize = (string) ->
   parsed
 
 class TreeStore
-  constructor: -> @store = new ContentAddressable store: memoryStore()
+  constructor: -> @store = memory()
   write: (tree) ->
     json = serialize tree
     @store.write json
