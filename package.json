@@ -1,7 +1,7 @@
 {
   "name": "synclib",
   "description": "A distributed document store",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)",
   "contributors": [
     "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)"
@@ -9,8 +9,7 @@
   "dependencies": {
     "async": "~0.1.22",
     "underscore": "~1.4.1",
-    "content-addressable": "*",
-    "pluggable-store": "*"
+    "content-addressable": "*"
   },
   "devDependencies": {
     "mocha": "~1.6.0"

@@ -1,7 +1,6 @@
 
 _ = require 'underscore'
 computeHash = require('./utils').hash
-{memory} = require('content-addressable')
 
 serialize = (obj) ->
   sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
@@ -17,14 +16,12 @@ deserialize = (string) ->
   parsed
 
 class TreeStore
-  constructor: -> @store = memory()
+  constructor: (@store) ->
   write: (tree) ->
     json = serialize tree
     @store.write json
   read: (hash) -> deserialize @store.read hash
   readAll: (hashs) -> @read each for each in hashs
   writeAll: (trees) -> @write each for each in trees
-
-
 
 module.exports = TreeStore

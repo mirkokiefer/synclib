@@ -1,11 +1,11 @@
 
 assert = require 'assert'
-{Repository, TreeStore} = require '../lib/index'
+{Repository, memoryStore} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
 
-treeStore = new TreeStore
-repo = new Repository treeStore
+store = memoryStore()
+repo = new Repository store
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in [1,2,3,4])
 
 testData = (branch, data) ->

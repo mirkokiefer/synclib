@@ -4,6 +4,7 @@ _ = require 'underscore'
 {union, values, keys, intersection, clone} = _
 {objectDiff, objectDiffObject, addKeyPrefix} = require './utils'
 Branch = require './branch'
+TreeStore = require './tree-store'
 
 class Tree
   constructor: ({ancestors, childTrees, childData}={}) ->
@@ -126,7 +127,7 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
     treeStore.write newTree
 
 class Repository
-  constructor: (@treeStore) ->
+  constructor: (@store) -> @treeStore = new TreeStore @store
   branch: (treeHash) -> new Branch this, treeHash
   commit: (oldTree, data) ->
     parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
