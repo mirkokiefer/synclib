@@ -160,26 +160,24 @@
     });
     describe('diff', function() {
       it('should find the diff between two trees', function() {
-        var data, diff, key, _ref2;
+        var diff, hash, path, _i, _len, _ref2, _ref3;
         diff = repo.diff(dataAHashes[0], dataAHashes[1]);
-        assert.equal(_.keys(diff.data).length, _.keys(dataA[1]).length);
+        assert.equal(diff.data.length, _.keys(dataA[1]).length);
         _ref2 = diff.data;
-        for (key in _ref2) {
-          data = _ref2[key];
-          assert.equal(data, dataA[1][key]);
+        for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+          _ref3 = _ref2[_i], path = _ref3.path, hash = _ref3.hash;
+          assert.equal(hash, dataA[1][path]);
         }
-        assert.equal(_.keys(diff.trees).length, 2);
-        assert.equal(diff.trees['b'], '60d7ae8d0d8ad666cb5155fbe015408b3055dd5b');
-        return assert.equal(diff.trees['b/f'], 'becb16e3c51e87c59dc8746ee084279dcc976c19');
+        return assert.equal(diff.trees.length, 3);
       });
       it('should find the diff between null and a tree', function() {
-        var data, diff, key, _ref2, _results;
+        var diff, hash, path, _i, _len, _ref2, _ref3, _results;
         diff = repo.diff(null, dataAHashes[0]);
         _ref2 = diff.data;
         _results = [];
-        for (key in _ref2) {
-          data = _ref2[key];
-          _results.push(assert.equal(data, dataA[0][key]));
+        for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+          _ref3 = _ref2[_i], path = _ref3.path, hash = _ref3.hash;
+          _results.push(assert.equal(hash, dataA[0][path]));
         }
         return _results;
       });
@@ -256,6 +254,14 @@
         return assert.equal(tree.childData.g, 'hash7');
       });
     });
+    /*describe 'patching', ->
+      it 'should create and apply a patch', (done) ->
+        remoteStore = memoryStore()
+        repo1Branch = repo1.branch(dataAHashes[1])
+        push source: repo2Branch, remoteHead: null, remoteStore: remoteStore, (err) ->
+          assert.ok remoteStore.read(dataAHashes[1])
+    */
+
   });
 
 }).call(this);

@@ -77,16 +77,14 @@ describe 'branch', () ->
   describe 'diff', () ->
     it 'should find the diff between two trees', ->
       diff = repo.diff dataAHashes[0], dataAHashes[1]
-      assert.equal _.keys(diff.data).length, _.keys(dataA[1]).length
-      for key, data of diff.data
-        assert.equal data, dataA[1][key]
-      assert.equal _.keys(diff.trees).length, 2
-      assert.equal diff.trees['b'], '60d7ae8d0d8ad666cb5155fbe015408b3055dd5b'
-      assert.equal diff.trees['b/f'], 'becb16e3c51e87c59dc8746ee084279dcc976c19'
+      assert.equal diff.data.length, _.keys(dataA[1]).length
+      for {path, hash} in diff.data
+        assert.equal hash, dataA[1][path]
+      assert.equal diff.trees.length, 3
     it 'should find the diff between null and a tree', ->
       diff = repo.diff null, dataAHashes[0]
-      for key, data of diff.data
-        assert.equal data, dataA[0][key]
+      for {path, hash} in diff.data
+        assert.equal hash, dataA[0][path]
     it 'should find the diff between the current head and another tree', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
@@ -120,4 +118,10 @@ describe 'branch', () ->
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
       assert.equal tree.childData.g, 'hash7'
+  ###describe 'patching', ->
+    it 'should create and apply a patch', (done) ->
+      remoteStore = memoryStore()
+      repo1Branch = repo1.branch(dataAHashes[1])
+      push source: repo2Branch, remoteHead: null, remoteStore: remoteStore, (err) ->
+        assert.ok remoteStore.read(dataAHashes[1])
 
