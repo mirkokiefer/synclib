@@ -188,17 +188,25 @@
       });
     });
     describe('patchHashsSince', function() {
-      it('should find the diff between trees in the past and the current head', function() {
+      it('should find the diff as hashes between heads in the past and the current head', function() {
         var diff, realData;
         diff = testBranchA.patchHashsSince([dataAHashes[0]]);
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]));
         return assert.equal(_.intersection(diff.data, realData).length, realData.length);
       });
-      return it('should find the diff between a tree in the past that doesnt exist and the current head', function() {
+      return it('should find the diff between a head in the past that doesnt exist and the current head', function() {
         var diff, realDataHashs;
         diff = testBranchA.patchHashsSince([null]);
         realDataHashs = _.values(dataA[0]);
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
+      });
+    });
+    describe('patchSince', function() {
+      return it('should find the diff including the actual trees between heads in the past and the current head', function() {
+        var diff;
+        diff = testBranchA.patchSince([dataAHashes[0]]);
+        assert.equal(diff.trees.length, 5);
+        return assert.ok(diff.trees[0].length > 40);
       });
     });
     describe('merge', function() {
@@ -254,14 +262,6 @@
         return assert.equal(tree.childData.g, 'hash7');
       });
     });
-    /*describe 'patching', ->
-      it 'should create and apply a patch', (done) ->
-        remoteStore = memoryStore()
-        repo1Branch = repo1.branch(dataAHashes[1])
-        push source: repo2Branch, remoteHead: null, remoteStore: remoteStore, (err) ->
-          assert.ok remoteStore.read(dataAHashes[1])
-    */
-
   });
 
 }).call(this);

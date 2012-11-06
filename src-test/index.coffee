@@ -89,14 +89,19 @@ describe 'branch', () ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
   describe 'patchHashsSince', () ->
-    it 'should find the diff between trees in the past and the current head', () ->
+    it 'should find the diff as hashes between heads in the past and the current head', () ->
       diff = testBranchA.patchHashsSince [dataAHashes[0]]
       realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realData).length, realData.length
-    it 'should find the diff between a tree in the past that doesnt exist and the current head', () ->
+    it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
       diff = testBranchA.patchHashsSince [null]
       realDataHashs = _.values(dataA[0])
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+  describe 'patchSince', () ->
+    it 'should find the diff including the actual trees between heads in the past and the current head', () ->
+      diff = testBranchA.patchSince [dataAHashes[0]]
+      assert.equal diff.trees.length, 5
+      assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
     it 'should merge two branches', () ->
       strategy = (path, value1Hash, value2Hash) -> value2Hash
@@ -118,10 +123,4 @@ describe 'branch', () ->
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
       assert.equal tree.childData.g, 'hash7'
-  ###describe 'patching', ->
-    it 'should create and apply a patch', (done) ->
-      remoteStore = memoryStore()
-      repo1Branch = repo1.branch(dataAHashes[1])
-      push source: repo2Branch, remoteHead: null, remoteStore: remoteStore, (err) ->
-        assert.ok remoteStore.read(dataAHashes[1])
 

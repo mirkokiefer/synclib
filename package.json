@@ -9,7 +9,7 @@
   "dependencies": {
     "async": "~0.1.22",
     "underscore": "~1.4.1",
-    "content-addressable": "*"
+    "content-addressable": "~0.0.5"
   },
   "devDependencies": {
     "mocha": "~1.6.0"

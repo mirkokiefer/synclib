@@ -148,6 +148,10 @@ class Repository
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
   patchHashsSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
+  patchSince: (trees1, trees2) ->
+    diff = @patchHashsSince trees1, trees2
+    diff.trees = (@store.read each for each in diff.trees)
+    diff
   merge: (tree1, tree2, strategy) ->
     obj = this
     commonTree = @commonCommit tree1, tree2

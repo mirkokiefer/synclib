@@ -10,6 +10,7 @@ class Branch
   commonCommit: (branch) -> @repo.commonCommit @head, branch.head
   diff: (branch) -> @repo.diff @head, branch.head
   patchHashsSince: (trees) -> @repo.patchHashsSince [@head], trees
+  patchSince: (trees) -> @repo.patchSince [@head], trees
   merge: ({branch, strategy}, cb) ->
     obj = this
     @repo.merge @head, branch.head, strategy, (err, head) ->
