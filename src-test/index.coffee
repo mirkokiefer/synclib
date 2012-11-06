@@ -88,18 +88,18 @@ describe 'branch', () ->
     it 'should find the diff between the current head and another tree', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
-  describe 'patchHashsSince', () ->
+  describe 'patchHashs', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
-      diff = testBranchA.patchHashsSince [dataAHashes[0]]
+      diff = testBranchA.patchHashs from: dataAHashes[0]
       realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realData).length, realData.length
     it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.patchHashsSince [null]
-      realDataHashs = _.values(dataA[0])
+      diff = testBranchA.patchHashs from: null
+      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
-  describe 'patchSince', () ->
+  describe 'patch', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
-      diff = testBranchA.patchSince [dataAHashes[0]]
+      diff = testBranchA.patch from: dataAHashes[0]
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->

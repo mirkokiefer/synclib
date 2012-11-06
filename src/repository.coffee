@@ -58,14 +58,19 @@ read = (treeHash, treeStore, path) ->
 treeAncestors = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
 treesAncestors = (treeStore) -> (trees) -> _.flatten (treeAncestors each, treeStore for each in trees)
 
-findCommonCommit = (trees1, trees2, treeStore) ->
+findCommonCommit = (tree1, tree2, treeStore) ->
+  if (not tree1) or (not tree2) then return undefined
+  [trees1, trees2] = ({current: [each], visited: []} for each in [tree1, tree2])
+  recurseUntilCommonCommit trees1, trees2, treeStore
+
+recurseUntilCommonCommit = (trees1, trees2, treeStore) ->
   if (trees1.current.length == 0) and (trees2.current.length == 0) then return undefined
   for [trees1, trees2] in [[trees1, trees2], [trees2, trees1]]
     for each in trees1.current when _.contains trees2.visited.concat(trees2.current), each
       return each
   [trees1Parents, trees2Parents] = [trees1.current, trees2.current].map treesAncestors(treeStore)
   merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
-  findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
+  recurseUntilCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
   if tree1Hash == tree2Hash then return trees: [], data: []
@@ -86,22 +91,22 @@ findDiff = (tree1Hash, tree2Hash, store) ->
   res = findDiffWithPaths tree1Hash, tree2Hash, store
   trees: _.pluck(res.trees, 'hash'), data: _.pluck(res.data, 'hash')
 
-findDiffSince = (positions, oldTrees, treeStore) ->
-  positions = _.difference positions, oldTrees
-  oldTrees = _.difference oldTrees, positions
-  if (oldTrees.length == 0) or (positions.length == 0) then return {trees: [], data: []}
+findDiffSince = (commonTreeHash, toTreeHash, treeStore) ->
+  if toTreeHash == commonTreeHash then return trees: [], data: []
+  toTree = treeStore.read toTreeHash
+  diff = trees: [], data: []
+  merge = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
+  for ancestor in toTree.ancestors
+    diff = merge diff, findDiff(ancestor, toTreeHash, treeStore)
+  if toTree.ancestors.length == 1
+    merge diff, findDiffSince(commonTreeHash, toTree.ancestors[0], treeStore)
+  else if toTree.ancestors.length == 0
+    merge diff, findDiff(null, toTreeHash, treeStore)
   else
-    mergeDiff = (diff, newDiff) ->
-      trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
-    reduceFun = (diff, eachPosition) ->
-      ancestors = treeAncestors eachPosition, treeStore
-      if ancestors.length > 0
-        parentDiffReduceFun = (diff, eachAncestor) ->
-          mergeDiff diff, findDiff eachAncestor, eachPosition, treeStore
-        diff = ancestors.reduce parentDiffReduceFun, diff
-        mergeDiff diff, findDiffSince ancestors, oldTrees, treeStore
-      else mergeDiff diff, findDiff(null, eachPosition, treeStore)
-    positions.reduce reduceFun, {trees: [], data: []}
+    for ancestor in toTree.ancestors
+      newCommonTreeHash = findCommonCommit ancestor, commonTreeHash, treeStore
+      diff = merge diff, findDiffSince(newCommonTreeHash, ancestor, treeStore)
+    diff
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
@@ -140,16 +145,16 @@ class Repository
   dataAtPath: (tree, path) ->
     path = path.split('/').reverse()
     read tree, @treeStore, path
-  commonCommit: (tree1, tree2) ->
-    [trees1, trees2] = ({current: [each], visited: []} for each in [tree1, tree2])
-    findCommonCommit trees1, trees2, @treeStore
+  commonCommit: (tree1, tree2) -> findCommonCommit tree1, tree2, @treeStore
   diff: (tree1, tree2) ->
     diff = findDiffWithPaths tree1, tree2, @treeStore
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
-  patchHashsSince: (trees1, trees2) -> findDiffSince trees1, trees2, @treeStore
-  patchSince: (trees1, trees2) ->
-    diff = @patchHashsSince trees1, trees2
+  patchHashs: ({from, to}) ->
+    commonTree = @commonCommit from, to
+    findDiffSince commonTree, to, @treeStore
+  patch: ({from, to}) ->
+    diff = @patchHashs from: from, to: to
     diff.trees = (@store.read each for each in diff.trees)
     diff
   merge: (tree1, tree2, strategy) ->

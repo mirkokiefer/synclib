@@ -9,8 +9,14 @@ class Branch
   dataAtPath: (path) -> @repo.dataAtPath @head, path
   commonCommit: (branch) -> @repo.commonCommit @head, branch.head
   diff: (branch) -> @repo.diff @head, branch.head
-  patchHashsSince: (trees) -> @repo.patchHashsSince [@head], trees
-  patchSince: (trees) -> @repo.patchSince [@head], trees
+  patchHashs: ({from, to}) ->
+    to = if to != undefined then to else @head
+    from = if from != undefined then from else @head
+    @repo.patchHashs from: from, to: to
+  patch: ({from, to}) ->
+    to = if to != undefined then to else @head
+    from = if from != undefined then from else @head
+    @repo.patch from: from, to: to
   merge: ({branch, strategy}, cb) ->
     obj = this
     @repo.merge @head, branch.head, strategy, (err, head) ->
