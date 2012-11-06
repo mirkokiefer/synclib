@@ -112,10 +112,9 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
   if not conflict then (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
   else
-    [commonTree, tree1, tree2] = (treeStore.read each for each in [commonTreeHash, tree1Hash, tree2Hash])
-    commonTree = if commonTree then commonTree else new Tree()
-    tree1 = if tree1 then tree1 else new Tree()
-    tree2 = if tree2 then tree2 else new Tree()
+    [commonTree, tree1, tree2] = for each in [commonTreeHash, tree1Hash, tree2Hash]
+      if each then treeStore.read each
+      else new Tree()
     ancestors = (each for each in [tree1Hash, tree2Hash] when each)
     newTree = new Tree ancestors: ancestors
     mergeData = ->

@@ -120,6 +120,11 @@ describe 'branch', () ->
       head = testBranchB.merge ref: dataAHashes[2]
       headTree = store.read head
       assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
+    it 'should merge branchA into branchC (they do not have a common commit)', () ->
+      oldHead = testBranchC.head
+      head = testBranchC.merge ref: dataAHashes[2]
+      headTree = store.read head
+      assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
   describe 'commit deletes', ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}

@@ -248,10 +248,19 @@
         }
         return _results;
       });
-      return it('should merge branchA into branchB', function() {
+      it('should merge branchA into branchB', function() {
         var head, headTree, oldHead;
         oldHead = testBranchB.head;
         head = testBranchB.merge({
+          ref: dataAHashes[2]
+        });
+        headTree = store.read(head);
+        return assert.equal(_.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0);
+      });
+      return it('should merge branchA into branchC (they do not have a common commit)', function() {
+        var head, headTree, oldHead;
+        oldHead = testBranchC.head;
+        head = testBranchC.merge({
           ref: dataAHashes[2]
         });
         headTree = store.read(head);
