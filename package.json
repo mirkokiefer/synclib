@@ -1,7 +1,7 @@
 {
   "name": "synclib",
   "description": "A distributed document store",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)",
   "contributors": [
     "Mirko Kiefer <mail@mirkokiefer.com> (http://mirkokiefer.com)"
