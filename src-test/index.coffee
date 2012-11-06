@@ -107,7 +107,7 @@ describe 'branch', () ->
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
-    it 'should merge two branches', () ->
+    it 'should merge branchB into branchA', () ->
       strategy = (path, value1Hash, value2Hash) -> value2Hash
       oldHead = testBranchA.head
       head = testBranchA.merge ref: testBranchB, strategy: strategy
@@ -115,6 +115,11 @@ describe 'branch', () ->
       for each in dataB
         for key, value of each
           assert.ok (diff.data[key] == value) or (diff.data[key] == undefined)
+    it 'should merge branchA into branchB', () ->
+      oldHead = testBranchB.head
+      head = testBranchB.merge ref: dataAHashes[2]
+      headTree = store.read head
+      assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
   describe 'commit deletes', ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}

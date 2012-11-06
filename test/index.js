@@ -222,7 +222,7 @@
       });
     });
     describe('merge', function() {
-      return it('should merge two branches', function() {
+      it('should merge branchB into branchA', function() {
         var diff, head, key, oldHead, strategy, value, _i, _len, _results;
         strategy = function(path, value1Hash, value2Hash) {
           return value2Hash;
@@ -247,6 +247,15 @@
           })());
         }
         return _results;
+      });
+      return it('should merge branchA into branchB', function() {
+        var head, headTree, oldHead;
+        oldHead = testBranchB.head;
+        head = testBranchB.merge({
+          ref: dataAHashes[2]
+        });
+        headTree = store.read(head);
+        return assert.equal(_.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0);
       });
     });
     describe('commit deletes', function() {
