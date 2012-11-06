@@ -208,9 +208,9 @@
     describe('patch', function() {
       return it('should find the diff including the actual trees between heads in the past and the current head', function() {
         var diff;
-        diff = testBranchA.patch({
+        diff = repo.patchData(testBranchA.patchHashs({
           from: dataAHashes[0]
-        });
+        }));
         assert.equal(diff.trees.length, 5);
         return assert.ok(diff.trees[0].length > 40);
       });
@@ -223,7 +223,7 @@
         };
         oldHead = testBranchA.head;
         head = testBranchA.merge({
-          branch: testBranchB,
+          ref: testBranchB,
           strategy: strategy
         });
         diff = repo.diff(oldHead, head);

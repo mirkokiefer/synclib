@@ -99,14 +99,14 @@ describe 'branch', () ->
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
   describe 'patch', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
-      diff = testBranchA.patch from: dataAHashes[0]
+      diff = repo.patchData testBranchA.patchHashs from: dataAHashes[0]
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
     it 'should merge two branches', () ->
       strategy = (path, value1Hash, value2Hash) -> value2Hash
       oldHead = testBranchA.head
-      head = testBranchA.merge branch: testBranchB, strategy: strategy
+      head = testBranchA.merge ref: testBranchB, strategy: strategy
       diff = repo.diff oldHead, head
       for each in dataB
         for key, value of each
