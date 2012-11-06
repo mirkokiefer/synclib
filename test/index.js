@@ -196,11 +196,17 @@
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]));
         return assert.equal(_.intersection(diff.data, realData).length, realData.length);
       });
-      return it('should find the diff between a head in the past that doesnt exist and the current head', function() {
+      it('should find the diff between a head in the past that doesnt exist and the current head', function() {
         var diff, realDataHashs;
         diff = testBranchA.patchHashs({
           from: null
         });
+        realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
+        return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
+      });
+      return it('should work without a ref - returns the full diff', function() {
+        var diff, realDataHashs;
+        diff = testBranchA.patchHashs();
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });

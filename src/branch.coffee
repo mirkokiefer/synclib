@@ -11,7 +11,7 @@ class Branch
   dataAtPath: (path) -> @repo.dataAtPath @head, path
   commonCommit: (ref) -> @repo.commonCommit @head, tree ref
   diff: (ref) -> @repo.diff @head, tree(ref)
-  patchHashs: ({from, to}) ->
+  patchHashs: ({from, to}={}) ->
     [from, to] = if (not from) and (not to) then [null, @head]
     else if from then [tree(from), @head] else [@head, tree(to)]
     @repo.patchHashs from: from, to: to

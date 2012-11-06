@@ -97,6 +97,10 @@ describe 'branch', () ->
       diff = testBranchA.patchHashs from: null
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+    it 'should work without a ref - returns the full diff', () ->
+      diff = testBranchA.patchHashs()
+      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
+      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
   describe 'patch', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
       diff = repo.patchData testBranchA.patchHashs from: dataAHashes[0]
