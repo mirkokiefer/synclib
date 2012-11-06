@@ -154,8 +154,7 @@ class Repository
     commonTree = @commonCommit from, to
     findDiffSince commonTree, to, @treeStore
   patchData: (patch) ->
-    patch.trees = (@store.read each for each in patch.trees)
-    patch
+    {trees: (@store.read each for each in patch.trees), data: patch.data}
   merge: (tree1, tree2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
