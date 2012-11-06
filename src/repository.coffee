@@ -154,6 +154,7 @@ class Repository
     diff
   merge: (tree1, tree2, strategy) ->
     obj = this
+    strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
     commonTree = @commonCommit tree1, tree2
     if tree1 == commonTree then tree2
     else if tree2 == commonTree then tree1
