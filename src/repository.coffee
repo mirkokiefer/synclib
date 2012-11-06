@@ -55,15 +55,15 @@ read = (treeHash, treeStore, path) ->
     if path.length == 0 then tree.childData[key]
     else read tree.childTrees[key], treeStore, path
 
-treeParents = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
-treesParents = (treeStore) -> (trees) -> _.flatten (treeParents each, treeStore for each in trees)
+treeAncestors = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
+treesAncestors = (treeStore) -> (trees) -> _.flatten (treeAncestors each, treeStore for each in trees)
 
 findCommonCommit = (trees1, trees2, treeStore) ->
   if (trees1.current.length == 0) and (trees2.current.length == 0) then return undefined
   for [trees1, trees2] in [[trees1, trees2], [trees2, trees1]]
     for each in trees1.current when _.contains trees2.visited.concat(trees2.current), each
       return each
-  [trees1Parents, trees2Parents] = [trees1.current, trees2.current].map treesParents(treeStore)
+  [trees1Parents, trees2Parents] = [trees1.current, trees2.current].map treesAncestors(treeStore)
   merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
   findCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
 
@@ -94,10 +94,10 @@ findDiffSince = (positions, oldTrees, treeStore) ->
     mergeDiff = (diff, newDiff) ->
       trees: union(diff.trees, newDiff.trees), data: union(diff.data, newDiff.data)
     reduceFun = (diff, eachPosition) ->
-      ancestors = treeParents eachPosition, treeStore
+      ancestors = treeAncestors eachPosition, treeStore
       if ancestors.length > 0
-        parentDiffReduceFun = (diff, eachParent) ->
-          mergeDiff diff, findDiff eachParent, eachPosition, treeStore
+        parentDiffReduceFun = (diff, eachAncestor) ->
+          mergeDiff diff, findDiff eachAncestor, eachPosition, treeStore
         diff = ancestors.reduce parentDiffReduceFun, diff
         mergeDiff diff, findDiffSince ancestors, oldTrees, treeStore
       else mergeDiff diff, findDiff(null, eachPosition, treeStore)
