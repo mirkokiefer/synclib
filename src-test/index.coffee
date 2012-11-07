@@ -24,17 +24,24 @@ dataA = [
   {'a': "hashA 1.0", 'b/c': "hashA 1.1", 'b/e': "hashA 1.2", 'b/f/g': "hashA 1.3"}
   {'b/e': "hashA 2.0"}
 ]
-dataAHashes = [
-  'e90eade66b9fc267016eff49d07bc5d8a64f0dda'
-  '3f0f72434191cde81c71d26dc7db96bd03435feb'
-  'cca2949ddf3046f4956292e8623c731ea8c217d5'
-]
-
 dataB = [
   {'b/h': "hashB 0.0"}
   {'c/a': "hashB 1.0"}
   {'a': "hashB 2.0", 'u': "hashB 2.1"}
   {'b/c': "hashB 3.0", 'b/e': "hashB 3.1", 'b/f/a': "hashB 3.2"}
+]
+dataC = [
+  {'a': 'hashC 0.0', 'c/a': 'hashC 0.1'}
+  {'a': 'hashC 1.0'}
+]
+dataD = [
+  {'e': 'hashD 0.0'}
+  {'b/f/b': 'hashD 1.0'}
+]
+dataAHashes = [
+  'e90eade66b9fc267016eff49d07bc5d8a64f0dda'
+  '3f0f72434191cde81c71d26dc7db96bd03435feb'
+  'cca2949ddf3046f4956292e8623c731ea8c217d5'
 ]
 dataBHashes = [
   'c6c3c788efd7d615887776c306290c45c29772cf'
@@ -42,13 +49,9 @@ dataBHashes = [
   '2fced862788cb4272f0d1d51869dba4d3552c630'
   '872a39296a6358c4d71c5de01aa0dc4c257718bf'
 ]
-
-dataC = [
-  {'a': 'hashC 0.0', 'c/a': 'hashC 0.1'}
-  {'a': 'hashC 1.0'}
-]
 commitB = {data: dataB, ref: dataAHashes[1], branch: testBranchB}
 commitC = {data: dataC, branch: testBranchC}
+commitD = {data: dataD, ref: dataBHashes[1], branch: testBranchD}
 
 ###
 a graphical branch view:
@@ -87,7 +90,7 @@ describe 'branch', () ->
       commitData = ({branch, data, ref}) ->
         branch.head = ref
         branch.commit each for each in data
-      commitData each for each in [commitB, commitC]
+      commitData each for each in [commitB, commitC, commitD]
       testTreeAncestors testBranchB.head, dataBHashes
   describe 'commonCommit', () ->
     # should maybe output the path as well
