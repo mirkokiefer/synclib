@@ -21,26 +21,40 @@ readParents = (treeHash, cb) ->
       async.map tree.ancestors, readParents, (err, res) ->
         cb null, [treeHash, res]
 dataA = [
-  {'a': "hash1", 'b/c': "hash2", 'b/d': "hash3"}
-  {'a': "hash4", 'b/c': "hash5", 'b/e': "hash6", 'b/f/g': "hash7"}
-  {'b/e': "hash8"}
+  {'a': "hashA 0.0", 'b/c': "hashA 0.1", 'b/d': "hashA 0.2"}
+  {'a': "hashA 1.0", 'b/c': "hashA 1.1", 'b/e': "hashA 1.2", 'b/f/g': "hashA 1.3"}
+  {'b/e': "hashA 2.0"}
 ]
 dataAHashes = [
-  '9a3b879755108b450eddf5f035fdc149838f4bec'
-  'd19c7dccb948ed962794de79d002525e9b0c9f7f'
-  'bdd6e36bdec4c962cbbd21085cd77d85125693db'
+  'e90eade66b9fc267016eff49d07bc5d8a64f0dda'
+  '3f0f72434191cde81c71d26dc7db96bd03435feb'
+  'cca2949ddf3046f4956292e8623c731ea8c217d5'
 ]
 
 dataB = [
-  {'b/h': "hash9"}
-  {'c/a': "hash10"}
-  {'a': "hash11", 'u': "hash12"}
-  {'b/c': "hash13", 'b/e': "hash14", 'b/f/a': "hash15"}
+  {'b/h': "hashB 0.0"}
+  {'c/a': "hashB 1.0"}
+  {'a': "hashB 2.0", 'u': "hashB 2.1"}
+  {'b/c': "hashB 3.0", 'b/e': "hashB 3.1", 'b/f/a': "hashB 3.2"}
 ]
-dataC = [dataB[0], dataB[1]]
+dataC = [
+  {'a': 'hashC 0.0', 'c/a': 'hashC 0.1'}
+  {'a': 'hashC 1.0'}
+]
 commitB = {data: dataB, ref: dataAHashes[1], branch: testBranchB}
 commitC = {data: dataC, branch: testBranchC}
 
+###
+a graphical branch view:
+
+               d0 - d1 <- D
+             /
+          b0 - b1 - b2 <- B
+        /
+a0 - a1 - a2 <- A
+
+c0 - c1 <- C
+###
 describe 'branch', () ->
   describe 'commit', () ->
     it 'should commit and read objects', () ->
@@ -49,12 +63,14 @@ describe 'branch', () ->
       testData testBranchA, dataA[0]
     it 'should create a child commit', () ->
       head = testBranchA.commit dataA[1]
+      assert.equal head, dataAHashes[1]
       testData testBranchA, dataA[1]
       d = testBranchA.dataAtPath 'b/d'
       assert.equal d, dataA[0]['b/d']
     it 'should read from a previous commit', () ->
       head1 = testBranchA.head
       head2 = testBranchA.commit dataA[2]
+      assert.equal head2, dataAHashes[2]
       eHead1 = repo.dataAtPath head1, 'b/e'
       assert.equal eHead1, dataA[1]['b/e']
       eHead2 = repo.dataAtPath head2, 'b/e'
@@ -101,6 +117,8 @@ describe 'branch', () ->
       diff = testBranchA.patchHashs()
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+    ###it 'should compute the hash to multiple trees', ->
+      diff = testBranchA.patchHashs to: [testBranchB, testBranchC]###
   describe 'patch', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
       diff = repo.patchData testBranchA.patchHashs from: dataAHashes[0]
@@ -136,5 +154,5 @@ describe 'branch', () ->
       assert.ok tree.childData
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
-      assert.equal tree.childData.g, 'hash7'
+      assert.equal tree.childData.g, dataA[1]['b/f/g']
 
