@@ -93,20 +93,20 @@ findDiff = (tree1Hash, tree2Hash, store) ->
 
 mergeDiffs = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
 
-findDiffSince = (commonTreeHash, toTreeHash, knownTrees, treeStore) ->
+findPatch = (commonTreeHash, toTreeHash, knownTrees, treeStore) ->
   if (toTreeHash == commonTreeHash) or (contains knownTrees, toTreeHash) then return trees: [], data: []
   toTree = treeStore.read toTreeHash
   diff = trees: [], data: []
   for ancestor in toTree.ancestors
     diff = mergeDiffs diff, findDiff(ancestor, toTreeHash, treeStore)
   if toTree.ancestors.length == 1
-    mergeDiffs diff, findDiffSince(commonTreeHash, toTree.ancestors[0], knownTrees, treeStore)
+    mergeDiffs diff, findPatch(commonTreeHash, toTree.ancestors[0], knownTrees, treeStore)
   else if toTree.ancestors.length == 0
     mergeDiffs diff, findDiff(null, toTreeHash, treeStore)
   else
     for ancestor in toTree.ancestors
       newCommonTreeHash = findCommonCommit ancestor, commonTreeHash, treeStore
-      diff = mergeDiffs diff, findDiffSince(newCommonTreeHash, ancestor, knownTrees, treeStore)
+      diff = mergeDiffs diff, findPatch(newCommonTreeHash, ancestor, knownTrees, treeStore)
     diff
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
@@ -155,7 +155,7 @@ class Repository
     diff = trees: [], data: []
     for eachTo in to
       commonTree = @commonCommit from, eachTo
-      diff = mergeDiffs diff, findDiffSince(commonTree, eachTo, diff.trees, @treeStore)
+      diff = mergeDiffs diff, findPatch(commonTree, eachTo, diff.trees, @treeStore)
     diff
   patchData: (patch) ->
     {trees: (@store.read each for each in patch.trees), data: patch.data}
