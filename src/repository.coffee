@@ -1,7 +1,7 @@
 
 async = require 'async'
 _ = require 'underscore'
-{union, values, keys, intersection, clone, contains} = _
+{union, values, keys, intersection, clone, contains, pluck} = _
 {objectDiff, objectDiffObject, addKeyPrefix} = require './utils'
 Branch = require './branch'
 TreeStore = require './tree-store'
@@ -103,18 +103,18 @@ findPatchDiff = (tree1Hash, tree2Hash, treeStore) ->
 findPatch = (commonTreeHash, toTreeHash, knownTrees, treeStore) ->
   if (toTreeHash == commonTreeHash) or (contains knownTrees, toTreeHash) then return trees: [], data: []
   toTree = treeStore.read toTreeHash
-  diff = trees: [], data: []
-  for ancestor in toTree.ancestors
-    diff = mergeDiffs diff, findPatchDiff(ancestor, toTreeHash, treeStore)
+  ancestorDiffs = for ancestor in toTree.ancestors
+    findPatchDiff(ancestor, toTreeHash, treeStore)
   if toTree.ancestors.length == 1
-    mergeDiffs diff, findPatch(commonTreeHash, toTree.ancestors[0], knownTrees, treeStore)
+    mergeDiffs ancestorDiffs[0], findPatch(commonTreeHash, toTree.ancestors[0], knownTrees, treeStore)
   else if toTree.ancestors.length == 0
-    mergeDiffs diff, findPatchDiff(null, toTreeHash, treeStore)
+    findPatchDiff(null, toTreeHash, treeStore)
   else
-    for ancestor in toTree.ancestors
+    diff = trees: union(pluck(ancestorDiffs, 'trees')...), data: intersection(pluck(ancestorDiffs, 'data')...)
+    reduceFun = (diff, ancestor) ->
       newCommonTreeHash = findCommonCommit ancestor, commonTreeHash, treeStore
-      diff = mergeDiffs diff, findPatch(newCommonTreeHash, ancestor, knownTrees, treeStore)
-    diff
+      mergeDiffs diff, findPatch(newCommonTreeHash, ancestor, knownTrees, treeStore)
+    toTree.ancestors.reduce reduceFun, diff
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
