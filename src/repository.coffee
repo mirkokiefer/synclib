@@ -87,22 +87,29 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
     data: union(diff.data, prependPath(childDiff.data))
   union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
-findDiff = (tree1Hash, tree2Hash, store) ->
-  res = findDiffWithPaths tree1Hash, tree2Hash, store
-  trees: _.pluck(res.trees, 'hash'), data: _.pluck(res.data, 'hash')
-
 mergeDiffs = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
+
+findPatchDiff = (tree1Hash, tree2Hash, treeStore) ->
+  if tree1Hash == tree2Hash then return trees: [], data: []
+  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
+    if each then treeStore.read each else new Tree()
+  diff = data: [], trees: if tree2Hash then [tree2Hash] else []
+  diff.data = (value for key, value of tree2.childData when tree1.childData[key] != value)
+  mapChildTree = (diff, key) ->
+    childDiff = findPatchDiff tree1.childTrees[key], tree2.childTrees[key], treeStore
+    mergeDiffs diff, childDiff
+  union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
 findPatch = (commonTreeHash, toTreeHash, knownTrees, treeStore) ->
   if (toTreeHash == commonTreeHash) or (contains knownTrees, toTreeHash) then return trees: [], data: []
   toTree = treeStore.read toTreeHash
   diff = trees: [], data: []
   for ancestor in toTree.ancestors
-    diff = mergeDiffs diff, findDiff(ancestor, toTreeHash, treeStore)
+    diff = mergeDiffs diff, findPatchDiff(ancestor, toTreeHash, treeStore)
   if toTree.ancestors.length == 1
     mergeDiffs diff, findPatch(commonTreeHash, toTree.ancestors[0], knownTrees, treeStore)
   else if toTree.ancestors.length == 0
-    mergeDiffs diff, findDiff(null, toTreeHash, treeStore)
+    mergeDiffs diff, findPatchDiff(null, toTreeHash, treeStore)
   else
     for ancestor in toTree.ancestors
       newCommonTreeHash = findCommonCommit ancestor, commonTreeHash, treeStore
