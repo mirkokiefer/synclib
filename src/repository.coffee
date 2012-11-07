@@ -91,21 +91,22 @@ findDiff = (tree1Hash, tree2Hash, store) ->
   res = findDiffWithPaths tree1Hash, tree2Hash, store
   trees: _.pluck(res.trees, 'hash'), data: _.pluck(res.data, 'hash')
 
+mergeDiffs = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
+
 findDiffSince = (commonTreeHash, toTreeHash, treeStore) ->
   if toTreeHash == commonTreeHash then return trees: [], data: []
   toTree = treeStore.read toTreeHash
   diff = trees: [], data: []
-  merge = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
   for ancestor in toTree.ancestors
-    diff = merge diff, findDiff(ancestor, toTreeHash, treeStore)
+    diff = mergeDiffs diff, findDiff(ancestor, toTreeHash, treeStore)
   if toTree.ancestors.length == 1
-    merge diff, findDiffSince(commonTreeHash, toTree.ancestors[0], treeStore)
+    mergeDiffs diff, findDiffSince(commonTreeHash, toTree.ancestors[0], treeStore)
   else if toTree.ancestors.length == 0
-    merge diff, findDiff(null, toTreeHash, treeStore)
+    mergeDiffs diff, findDiff(null, toTreeHash, treeStore)
   else
     for ancestor in toTree.ancestors
       newCommonTreeHash = findCommonCommit ancestor, commonTreeHash, treeStore
-      diff = merge diff, findDiffSince(newCommonTreeHash, ancestor, treeStore)
+      diff = mergeDiffs diff, findDiffSince(newCommonTreeHash, ancestor, treeStore)
     diff
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
@@ -150,8 +151,12 @@ class Repository
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
   patchHashs: ({from, to}) ->
-    commonTree = @commonCommit from, to
-    findDiffSince commonTree, to, @treeStore
+    to = if to.constructor == Array then to else [to]
+    diff = trees: [], data: []
+    for eachTo in to
+      commonTree = @commonCommit from, eachTo
+      diff = mergeDiffs diff, findDiffSince(commonTree, eachTo, @treeStore)
+    diff
   patchData: (patch) ->
     {trees: (@store.read each for each in patch.trees), data: patch.data}
   merge: (tree1, tree2, strategy) ->

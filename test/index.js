@@ -117,8 +117,8 @@
   /*
   a graphical branch view:
   
-                 d0 - d1 <- D
-               /
+                      d0 - d1 <- D
+                    /
             b0 - b1 - b2 <- B
           /
   a0 - a1 - a2 <- A
@@ -178,9 +178,11 @@
     });
     describe('commonCommit', function() {
       it('should find a common commit', function() {
-        var res;
-        res = testBranchA.commonCommit(testBranchB);
-        return assert.equal(res, dataAHashes[1]);
+        var res1, res2;
+        res1 = testBranchA.commonCommit(testBranchB);
+        assert.equal(res1, dataAHashes[1]);
+        res2 = testBranchA.commonCommit(testBranchD);
+        return assert.equal(res2, dataAHashes[1]);
       });
       return it('should not find a common commit', function() {
         var res;
@@ -234,16 +236,28 @@
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });
-      return it('should work without a ref - returns the full diff', function() {
+      it('should work without a ref - returns the full diff', function() {
         var diff, realDataHashs;
         diff = testBranchA.patchHashs();
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });
-      /*it 'should compute the hash to multiple trees', ->
-        diff = testBranchA.patchHashs to: [testBranchB, testBranchC]
-      */
-
+      it('should compute the hash to a disconnected branch', function() {
+        var diff, realDataHashs;
+        diff = testBranchA.patchHashs({
+          to: testBranchC
+        });
+        realDataHashs = _.union(_.values(dataC[0]), _.values(dataC[1]));
+        return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
+      });
+      return it('should compute the hash to multiple trees', function() {
+        var diff, realDataHashs;
+        diff = testBranchD.patchHashs({
+          to: [testBranchA, testBranchB]
+        });
+        realDataHashs = _.union(_.values(dataA[2]), _.values(dataB[3]));
+        return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
+      });
     });
     describe('patch', function() {
       return it('should find the diff including the actual trees between heads in the past and the current head', function() {

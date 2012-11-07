@@ -56,8 +56,8 @@ commitD = {data: dataD, ref: dataBHashes[1], branch: testBranchD}
 ###
 a graphical branch view:
 
-               d0 - d1 <- D
-             /
+                    d0 - d1 <- D
+                  /
           b0 - b1 - b2 <- B
         /
 a0 - a1 - a2 <- A
@@ -95,8 +95,10 @@ describe 'branch', () ->
   describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', ->
-      res = testBranchA.commonCommit testBranchB
-      assert.equal res, dataAHashes[1]
+      res1 = testBranchA.commonCommit testBranchB
+      assert.equal res1, dataAHashes[1]
+      res2 = testBranchA.commonCommit testBranchD
+      assert.equal res2, dataAHashes[1]
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined
@@ -127,8 +129,14 @@ describe 'branch', () ->
       diff = testBranchA.patchHashs()
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
-    ###it 'should compute the hash to multiple trees', ->
-      diff = testBranchA.patchHashs to: [testBranchB, testBranchC]###
+    it 'should compute the hash to a disconnected branch', ->
+      diff = testBranchA.patchHashs to: testBranchC
+      realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
+      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+    it 'should compute the hash to multiple trees', ->
+      diff = testBranchD.patchHashs to: [testBranchA, testBranchB]
+      realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
+      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
   describe 'patch', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
       diff = repo.patchData testBranchA.patchHashs from: dataAHashes[0]
