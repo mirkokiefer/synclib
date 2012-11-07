@@ -64,6 +64,7 @@ a0 - a1 - a2 <- A
 
 c0 - c1 <- C
 ###
+
 describe 'branch', () ->
   describe 'commit', () ->
     it 'should commit and read objects', () ->
