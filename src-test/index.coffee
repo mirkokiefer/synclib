@@ -148,6 +148,7 @@ describe 'branch', () ->
       strategy = (path, value1Hash, value2Hash) -> value2Hash
       oldHead = testBranchA.head
       head = testBranchA.merge ref: testBranchB, strategy: strategy
+      assert.equal testBranchA.head, head
       diff = repo.diff oldHead, head
       for each in dataB
         for key, value of each

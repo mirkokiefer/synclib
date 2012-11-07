@@ -280,6 +280,7 @@
           ref: testBranchB,
           strategy: strategy
         });
+        assert.equal(testBranchA.head, head);
         diff = repo.diff(oldHead, head);
         _results = [];
         for (_i = 0, _len = dataB.length; _i < _len; _i++) {

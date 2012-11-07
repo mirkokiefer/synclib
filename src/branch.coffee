@@ -18,10 +18,8 @@ class Branch
         else [@head, tree(to)]
       else [null, @head]
     @repo.patchHashs from: from, to: to
-  merge: ({ref, strategy}, cb) ->
+  merge: ({ref, strategy}) ->
     obj = this
-    @repo.merge @head, tree(ref), strategy, (err, head) ->
-      obj.head = head
-      cb null, head
+    @head = @repo.merge @head, tree(ref), strategy
 
 module.exports = Branch
