@@ -12,14 +12,13 @@ testData = (branch, data) ->
   for path, value of data
     assert.equal branch.dataAtPath(path), value
 
-readDataHashs = (hashs, cb) -> async.map hashs, ((each, cb) -> repo.dataAtPathData each, cb), cb
-readParents = (treeHash, cb) ->
-  repo.dataAtPathTree treeHash, (err, tree) ->
-    if tree.ancestors.length == 0
-      cb null, treeHash
-    else
-      async.map tree.ancestors, readParents, (err, res) ->
-        cb null, [treeHash, res]
+testTreeAncestors = (treeHash, hashs) ->
+  [first, rest...] = hashs
+  assert.equal treeHash, first
+  if rest.length > 0
+    tree = repo.treeStore.read treeHash
+    testTreeAncestors tree.ancestors[0], rest
+
 dataA = [
   {'a': "hashA 0.0", 'b/c': "hashA 0.1", 'b/d': "hashA 0.2"}
   {'a': "hashA 1.0", 'b/c': "hashA 1.1", 'b/e': "hashA 1.2", 'b/f/g': "hashA 1.3"}
@@ -37,6 +36,13 @@ dataB = [
   {'a': "hashB 2.0", 'u': "hashB 2.1"}
   {'b/c': "hashB 3.0", 'b/e': "hashB 3.1", 'b/f/a': "hashB 3.2"}
 ]
+dataBHashes = [
+  'c6c3c788efd7d615887776c306290c45c29772cf'
+  'befd62c41818e1ea39573507fd1dc1cd47f01af3'
+  '2fced862788cb4272f0d1d51869dba4d3552c630'
+  '872a39296a6358c4d71c5de01aa0dc4c257718bf'
+]
+
 dataC = [
   {'a': 'hashC 0.0', 'c/a': 'hashC 0.1'}
   {'a': 'hashC 1.0'}
@@ -82,6 +88,7 @@ describe 'branch', () ->
         branch.head = ref
         branch.commit each for each in data
       commitData each for each in [commitB, commitC]
+      testTreeAncestors testBranchB.head, dataBHashes
   describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', ->
