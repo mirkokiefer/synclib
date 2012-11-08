@@ -19,7 +19,7 @@
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       each = _ref[_i];
-      _results.push(repo.addBranch(each));
+      _results.push(repo.branch());
     }
     return _results;
   })(), testBranchA = _ref[0], testBranchB = _ref[1], testBranchC = _ref[2], testBranchD = _ref[3];

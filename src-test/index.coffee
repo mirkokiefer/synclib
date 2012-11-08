@@ -5,7 +5,7 @@ async = require 'async'
 _ = require 'underscore'
 
 repo = new Repository()
-[testBranchA, testBranchB, testBranchC, testBranchD] = (repo.addBranch each for each in ['a', 'b', 'c', 'd'])
+[testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
 testData = (branch, data) ->
   for path, value of data

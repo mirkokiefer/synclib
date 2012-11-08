@@ -143,25 +143,10 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
     treeStore.write newTree
 
 class Repository
-  constructor: ({@treeStore, @branchStore}={}) ->
+  constructor: ({@treeStore}={}) ->
     if not @treeStore then @treeStore = contentAddressable()
-    if not @branchStore then @branchStore = keyValueStore()
     @_treeStore = new TreeStore @treeStore
-    @_branches = {}
-  addBranch: (name, hash) ->
-    if hash then @branchStore.write name, hash
-    @branch name
-  removeBranch: (name) ->
-    delete @_branches[name]
-    @branchStore.remove name
-  branch: (name) ->
-    if cached=@_branches[name] then cached
-    else
-      obj = this
-      branch = new Branch this, @branchStore.read name
-      branch.on 'postCommit', (head) -> obj.branchStore.write name, head
-      branch
-  detachedBranch: (treeHash) -> new Branch this, treeHash
+  branch: (treeHash) -> new Branch this, treeHash
   commit: (oldTree, data) ->
     parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
     commit oldTree, parsedData, @_treeStore
