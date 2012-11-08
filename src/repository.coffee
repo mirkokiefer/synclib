@@ -5,6 +5,8 @@ _ = require 'underscore'
 {objectDiff, objectDiffObject, addKeyPrefix} = require './utils'
 Branch = require './branch'
 TreeStore = require './tree-store'
+contentAddressable = require('content-addressable').memory
+keyValueStore = require('pluggable-store').memory
 
 class Tree
   constructor: ({ancestors, childTrees, childData}={}) ->
@@ -141,20 +143,37 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
     treeStore.write newTree
 
 class Repository
-  constructor: (@store) -> @treeStore = new TreeStore @store
-  branch: (treeHash) -> new Branch this, treeHash
+  constructor: ({@treeStore, @branchStore}={}) ->
+    if not @treeStore then @treeStore = contentAddressable()
+    if not @branchStore then @branchStore = keyValueStore()
+    @_treeStore = new TreeStore @treeStore
+    @_branches = {}
+  addBranch: (name, hash) ->
+    if hash then @branchStore.write name, hash
+    @branch name
+  removeBranch: (name) ->
+    delete @_branches[name]
+    @branchStore.remove name
+  branch: (name) ->
+    if cached=@_branches[name] then cached
+    else
+      obj = this
+      branch = new Branch this, @branchStore.read name
+      branch.on 'postCommit', (head) -> obj.branchStore.write name, head
+      branch
+  detachedBranch: (treeHash) -> new Branch this, treeHash
   commit: (oldTree, data) ->
     parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
-    commit oldTree, parsedData, @treeStore
+    commit oldTree, parsedData, @_treeStore
   treeAtPath: (tree, path) ->
     path = if path == '' then [] else path.split('/').reverse()
-    readTreeAtPath tree, @treeStore, path    
+    readTreeAtPath tree, @_treeStore, path    
   dataAtPath: (tree, path) ->
     path = path.split('/').reverse()
-    read tree, @treeStore, path
-  commonCommit: (tree1, tree2) -> findCommonCommit tree1, tree2, @treeStore
+    read tree, @_treeStore, path
+  commonCommit: (tree1, tree2) -> findCommonCommit tree1, tree2, @_treeStore
   diff: (tree1, tree2) ->
-    diff = findDiffWithPaths tree1, tree2, @treeStore
+    diff = findDiffWithPaths tree1, tree2, @_treeStore
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
   deltaHashs: ({from, to}) ->
@@ -162,10 +181,10 @@ class Repository
     diff = trees: [], data: []
     for eachTo in to
       commonTree = @commonCommit from, eachTo
-      diff = mergeDiffs diff, findDelta(commonTree, eachTo, diff.trees, @treeStore)
+      diff = mergeDiffs diff, findDelta(commonTree, eachTo, diff.trees, @_treeStore)
     diff
   deltaData: (delta) ->
-    {trees: (@store.read each for each in delta.trees), data: delta.data}
+    {trees: (@treeStore.read each for each in delta.trees), data: delta.data}
   merge: (tree1, tree2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
@@ -173,6 +192,6 @@ class Repository
     if tree1 == commonTree then tree2
     else if tree2 == commonTree then tree1
     else
-      mergingCommit commonTree, tree1, tree2, strategy, @treeStore
+      mergingCommit commonTree, tree1, tree2, strategy, @_treeStore
 
 module.exports = Repository

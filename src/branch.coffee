@@ -1,12 +1,16 @@
 
 async = require 'async'
 _ = require 'underscore'
+EventEmitter = require('eventemitter2').EventEmitter2
 
 tree = (treeOrBranch) -> if treeOrBranch.constructor == Branch then treeOrBranch.head else treeOrBranch
 
-class Branch
+class Branch extends EventEmitter
   constructor: (@repo, @head) ->
-  commit: (data) -> @head = @repo.commit @head, data
+  commit: (data) ->
+    @head = @repo.commit @head, data
+    @emit 'postCommit', @head
+    @head
   treeAtPath: (path, cb) -> @repo.treeAtPath @head, path, cb
   dataAtPath: (path) -> @repo.dataAtPath @head, path
   commonCommit: (ref) -> @repo.commonCommit @head, tree ref

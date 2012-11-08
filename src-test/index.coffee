@@ -1,12 +1,11 @@
 
 assert = require 'assert'
-{Repository, memoryStore} = require '../lib/index'
+{Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
 
-store = memoryStore()
-repo = new Repository store
-[testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in [1,2,3,4])
+repo = new Repository()
+[testBranchA, testBranchB, testBranchC, testBranchD] = (repo.addBranch each for each in ['a', 'b', 'c', 'd'])
 
 testData = (branch, data) ->
   for path, value of data
@@ -16,7 +15,7 @@ testTreeAncestors = (treeHash, hashs) ->
   [first, rest...] = hashs
   assert.equal treeHash, first
   if rest.length > 0
-    tree = repo.treeStore.read treeHash
+    tree = repo._treeStore.read treeHash
     testTreeAncestors tree.ancestors[0], rest
 
 dataA = [
@@ -156,12 +155,12 @@ describe 'branch', () ->
     it 'should merge branchA into branchB', () ->
       oldHead = testBranchB.head
       head = testBranchB.merge ref: dataAHashes[2]
-      headTree = store.read head
+      headTree = repo._treeStore.read head
       assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
     it 'should merge branchA into branchC (they do not have a common commit)', () ->
       oldHead = testBranchC.head
       head = testBranchC.merge ref: dataAHashes[2]
-      headTree = store.read head
+      headTree = repo._treeStore.read head
       assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
   describe 'commit deletes', ->
     it 'should delete data', ->
