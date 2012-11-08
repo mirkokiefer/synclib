@@ -219,10 +219,10 @@
         return assert.ok(diff);
       });
     });
-    describe('patchHashs', function() {
+    describe('deltaHashs', function() {
       it('should find the diff as hashes between heads in the past and the current head', function() {
         var diff, realData;
-        diff = testBranchA.patchHashs({
+        diff = testBranchA.deltaHashs({
           from: dataAHashes[0]
         });
         realData = _.union(_.values(dataA[1]), _.values(dataA[2]));
@@ -230,7 +230,7 @@
       });
       it('should find the diff between a head in the past that doesnt exist and the current head', function() {
         var diff, realDataHashs;
-        diff = testBranchA.patchHashs({
+        diff = testBranchA.deltaHashs({
           from: null
         });
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
@@ -238,13 +238,13 @@
       });
       it('should work without a ref - returns the full diff', function() {
         var diff, realDataHashs;
-        diff = testBranchA.patchHashs();
+        diff = testBranchA.deltaHashs();
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1], _.values(dataA[2])));
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });
       it('should compute the hash to a disconnected branch', function() {
         var diff, realDataHashs;
-        diff = testBranchA.patchHashs({
+        diff = testBranchA.deltaHashs({
           to: testBranchC
         });
         realDataHashs = _.union(_.values(dataC[0]), _.values(dataC[1]));
@@ -252,17 +252,17 @@
       });
       return it('should compute the hash to multiple trees', function() {
         var diff, realDataHashs;
-        diff = testBranchD.patchHashs({
+        diff = testBranchD.deltaHashs({
           to: [testBranchA, testBranchB]
         });
         realDataHashs = _.union(_.values(dataA[2]), _.values(dataB[3]));
         return assert.equal(_.intersection(diff.data, realDataHashs).length, realDataHashs.length);
       });
     });
-    describe('patch', function() {
+    describe('delta', function() {
       return it('should find the diff including the actual trees between heads in the past and the current head', function() {
         var diff;
-        diff = repo.patchData(testBranchA.patchHashs({
+        diff = repo.deltaData(testBranchA.deltaHashs({
           from: dataAHashes[0]
         }));
         assert.equal(diff.trees.length, 5);

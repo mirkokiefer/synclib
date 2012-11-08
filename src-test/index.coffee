@@ -117,30 +117,30 @@ describe 'branch', () ->
     it 'should find the diff between the current head and another tree', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
-  describe 'patchHashs', () ->
+  describe 'deltaHashs', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
-      diff = testBranchA.patchHashs from: dataAHashes[0]
+      diff = testBranchA.deltaHashs from: dataAHashes[0]
       realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realData).length, realData.length
     it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.patchHashs from: null
+      diff = testBranchA.deltaHashs from: null
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
     it 'should work without a ref - returns the full diff', () ->
-      diff = testBranchA.patchHashs()
+      diff = testBranchA.deltaHashs()
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
     it 'should compute the hash to a disconnected branch', ->
-      diff = testBranchA.patchHashs to: testBranchC
+      diff = testBranchA.deltaHashs to: testBranchC
       realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
     it 'should compute the hash to multiple trees', ->
-      diff = testBranchD.patchHashs to: [testBranchA, testBranchB]
+      diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
       realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
       assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
-  describe 'patch', () ->
+  describe 'delta', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
-      diff = repo.patchData testBranchA.patchHashs from: dataAHashes[0]
+      diff = repo.deltaData testBranchA.deltaHashs from: dataAHashes[0]
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
