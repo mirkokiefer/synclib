@@ -57,14 +57,14 @@ read = (treeHash, treeStore, path) ->
     if path.length == 0 then tree.childData[key]
     else read tree.childTrees[key], treeStore, path
 
-findPaths = (treeHash, treeStore) ->
+allPaths = (treeHash, treeStore) ->
   tree = treeStore.read treeHash
   paths = []
   for key, childTree of tree.childTrees
-    childPaths = findPaths childTree, treeStore
-    res = ([key, each...] for each in childPaths)
+    childPaths = allPaths childTree, treeStore
+    res = (path: [key, path...], value:value  for {path, value} in childPaths)
     paths = paths.concat res
-  paths.concat ([each] for each in keys(tree.childData))
+  paths.concat (path:[key], value:value for key, value of tree.childData)
 
 treeAncestors = (treeHash, treeStore) -> treeStore.read(treeHash).ancestors
 treesAncestors = (treeStore) -> (trees) -> _.flatten (treeAncestors each, treeStore for each in trees)
@@ -165,8 +165,8 @@ class Repository
   dataAtPath: (tree, path) ->
     path = path.split('/').reverse()
     read tree, @_treeStore, path
-  paths: (treeHash) ->
-    each.join '/' for each in findPaths treeHash, @_treeStore
+  allPaths: (treeHash) ->
+    path:path.join('/'), value:value for {path, value} in allPaths treeHash, @_treeStore
   commonCommit: (tree1, tree2) -> findCommonCommit tree1, tree2, @_treeStore
   diff: (tree1, tree2) ->
     diff = findDiffWithPaths tree1, tree2, @_treeStore
