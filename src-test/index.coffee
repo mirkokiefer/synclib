@@ -3,7 +3,7 @@ assert = require 'assert'
 {Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-
+{difference} = _
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
@@ -174,4 +174,8 @@ describe 'branch', () ->
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
       assert.equal tree.childData.g, dataA[1]['b/f/g']
-
+  describe 'paths', ->
+    it 'should return all tracked paths', ->
+      expected = [ 'b/f/g', 'b/c', 'b/d', 'b/e', 'a' ]
+      assert.equal difference(testBranchC.paths(), expected).length, 0
+      assert.equal difference(expected, testBranchC.paths()).length, 0

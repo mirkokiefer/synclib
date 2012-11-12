@@ -13,6 +13,7 @@ class Branch extends EventEmitter
     @head
   treeAtPath: (path) -> @repo.treeAtPath @head, path
   dataAtPath: (path) -> @repo.dataAtPath @head, path
+  paths: -> @repo.paths @head
   commonCommit: (ref) -> @repo.commonCommit @head, tree ref
   diff: (ref) -> @repo.diff @head, tree(ref)
   deltaHashs: ({from, to}={}) ->
