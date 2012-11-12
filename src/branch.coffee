@@ -11,7 +11,7 @@ class Branch extends EventEmitter
     @head = @repo.commit @head, data
     @emit 'postCommit', @head
     @head
-  treeAtPath: (path, cb) -> @repo.treeAtPath @head, path, cb
+  treeAtPath: (path) -> @repo.treeAtPath @head, path
   dataAtPath: (path) -> @repo.dataAtPath @head, path
   commonCommit: (ref) -> @repo.commonCommit @head, tree ref
   diff: (ref) -> @repo.diff @head, tree(ref)
