@@ -3,6 +3,7 @@ async = require 'async'
 _ = require 'underscore'
 EventEmitter = require('eventemitter2').EventEmitter2
 
+trees = (treesOrBranches) -> tree each for each in treesOrBranches
 tree = (treeOrBranch) -> if treeOrBranch.constructor == Branch then treeOrBranch.head else treeOrBranch
 
 class Branch extends EventEmitter
@@ -17,11 +18,9 @@ class Branch extends EventEmitter
   commonCommit: (ref) -> @repo.commonCommit @head, tree ref
   diff: (ref) -> @repo.diff @head, tree(ref)
   deltaHashs: ({from, to}={}) ->
-    [from, to] = if from then [tree(from), @head] else
-      if to
-        if to.constructor == Array then [@head, tree(each) for each in to]
-        else [@head, tree(to)]
-      else [null, @head]
+    [from, to] = if from then [trees(from), [@head]] else
+      if to then [[@head], trees(to)]
+      else [[], [@head]]
     @repo.deltaHashs from: from, to: to
   merge: ({ref, strategy}) ->
     obj = this

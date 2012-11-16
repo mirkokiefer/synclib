@@ -20,7 +20,9 @@ class TreeStore
   write: (tree) ->
     json = serialize tree
     @store.write json
-  read: (hash) -> deserialize @store.read hash
+  read: (hash) ->
+    json = @store.read hash
+    if json then deserialize json else undefined
   readAll: (hashs) -> @read each for each in hashs
   writeAll: (trees) -> @write each for each in trees
 

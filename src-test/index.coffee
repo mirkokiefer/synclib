@@ -3,9 +3,13 @@ assert = require 'assert'
 {Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-{difference, keys, pluck} = _
+{union, difference, keys, values, pluck, contains} = _
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
+
+crossCheck = (array1, array2) ->
+  assert.ok contains(array1, each) for each in array2
+  assert.ok contains(array2, each) for each in array1
 
 testData = (branch, data) ->
   for path, value of data
@@ -57,7 +61,7 @@ a graphical branch view:
 
                     d0 - d1 <- D
                   /
-          b0 - b1 - b2 <- B
+          b0 - b1 - b2 - b3 <- B
         /
 a0 - a1 - a2 <- A
 
@@ -118,28 +122,32 @@ describe 'branch', () ->
       assert.ok diff
   describe 'deltaHashs', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
-      diff = testBranchA.deltaHashs from: dataAHashes[0]
-      realData = _.union(_.values(dataA[1]), _.values(dataA[2]))
-      assert.equal _.intersection(diff.data, realData).length, realData.length
+      diff = testBranchA.deltaHashs from: [dataAHashes[0]]
+      realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
+      crossCheck diff.data, realDataHashs
     it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.deltaHashs from: null
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
-      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+      diff = testBranchA.deltaHashs from: ['non-existing']
+      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+      crossCheck diff.data, realDataHashs
     it 'should work without a ref - returns the full diff', () ->
       diff = testBranchA.deltaHashs()
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1], _.values(dataA[2]))
-      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+      crossCheck diff.data, realDataHashs
     it 'should compute the hash to a disconnected branch', ->
-      diff = testBranchA.deltaHashs to: testBranchC
+      diff = testBranchA.deltaHashs to: [testBranchC]
       realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
-      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+      crossCheck diff.data, realDataHashs
     it 'should compute the hash to multiple trees', ->
       diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
       realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
-      assert.equal _.intersection(diff.data, realDataHashs).length, realDataHashs.length
+      crossCheck diff.data, realDataHashs
+    it 'should compute the delta from multiple trees to a single tree', ->
+      diff = testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC]
+      realDataHashs = union values(dataD[0]), values(dataD[1])
+      crossCheck diff.data, realDataHashs
   describe 'delta', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
-      diff = repo.deltaData testBranchA.deltaHashs from: dataAHashes[0]
+      diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
