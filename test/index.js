@@ -157,6 +157,11 @@
         d = testBranchA.dataAtPath('b/d');
         return assert.equal(d, dataA[0]['b/d']);
       });
+      it('should not create a new commit', function() {
+        var head;
+        head = testBranchA.commit(dataA[1]);
+        return assert.equal(head, dataAHashes[1]);
+      });
       it('should read from a previous commit', function() {
         var eHead1, eHead2, head1, head2;
         head1 = testBranchA.head;

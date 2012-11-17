@@ -80,6 +80,9 @@ describe 'branch', () ->
       testData testBranchA, dataA[1]
       d = testBranchA.dataAtPath 'b/d'
       assert.equal d, dataA[0]['b/d']
+    it 'should not create a new commit', ->
+      head = testBranchA.commit dataA[1]
+      assert.equal head, dataAHashes[1]
     it 'should read from a previous commit', () ->
       head1 = testBranchA.head
       head2 = testBranchA.commit dataA[2]

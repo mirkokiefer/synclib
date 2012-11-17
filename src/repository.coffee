@@ -14,7 +14,7 @@ class Tree
     @childTrees = if childTrees then childTrees else {}
     @childData = if childData then childData else {}
 
-splitCurrentAndChildTreeData = (data) ->
+groupCurrentAndChildTreeData = (data) ->
   currentTreeData = {}
   childTreeData = {}
   for {path, hash} in data
@@ -26,21 +26,26 @@ splitCurrentAndChildTreeData = (data) ->
   [currentTreeData, childTreeData]
 
 commit = (treeHash, data, treeStore) ->
-  currentTree = if treeHash
-    tree = treeStore.read treeHash
-    new Tree childData:clone(tree.childData), childTrees:clone(tree.childTrees), ancestors:[treeHash]
-  else new Tree()
-  [currentTreeData, childTreeData] = splitCurrentAndChildTreeData data
+  changedTree = false
+  currentTree = if treeHash then treeStore.read treeHash else new Tree()
+  [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
   for key, hash of currentTreeData
-    if hash then currentTree.childData[key]=hash
-    else delete currentTree.childData[key]
+    if currentTree.childData[key] != hash
+      changedTree = true
+      if hash then currentTree.childData[key]=hash
+      else delete currentTree.childData[key]
   for key, data of childTreeData
     previousTree = currentTree.childTrees[key]
     newChildTree = commit previousTree, data, treeStore
-    if newChildTree then currentTree.childTrees[key] = newChildTree
-    else delete currentTree.childTrees[key]
+    if newChildTree != previousTree
+      changedTree = true
+      if newChildTree then currentTree.childTrees[key] = newChildTree
+      else delete currentTree.childTrees[key]
   if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
-    treeStore.write currentTree
+    if changedTree
+      if treeHash then currentTree.ancestors = [treeHash]
+      treeStore.write currentTree
+    else treeHash
 
 readTreeAtPath = (treeHash, treeStore, path) ->
   tree = treeStore.read treeHash
