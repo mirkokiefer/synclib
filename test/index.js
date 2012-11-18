@@ -197,11 +197,17 @@
     });
     describe('commonCommit', function() {
       it('should find a common commit', function() {
-        var res1, res2;
+        var res1, res2, res3, res4, res5;
         res1 = testBranchA.commonCommit(testBranchB);
         assert.equal(res1, dataAHashes[1]);
         res2 = testBranchA.commonCommit(testBranchD);
-        return assert.equal(res2, dataAHashes[1]);
+        assert.equal(res2, dataAHashes[1]);
+        res3 = testBranchA.commonCommit(dataAHashes[0]);
+        assert.equal(res3, dataAHashes[0]);
+        res4 = repo.commonCommit(dataAHashes[2], dataAHashes[0]);
+        assert.equal(res4, dataAHashes[0]);
+        res5 = repo.commonCommit(dataAHashes[0], dataAHashes[2]);
+        return assert.equal(res5, dataAHashes[0]);
       });
       return it('should not find a common commit', function() {
         var res;

@@ -106,6 +106,12 @@ describe 'branch', () ->
       assert.equal res1, dataAHashes[1]
       res2 = testBranchA.commonCommit testBranchD
       assert.equal res2, dataAHashes[1]
+      res3 = testBranchA.commonCommit dataAHashes[0]
+      assert.equal res3, dataAHashes[0]
+      res4 = repo.commonCommit dataAHashes[2], dataAHashes[0]
+      assert.equal res4, dataAHashes[0]
+      res5 = repo.commonCommit dataAHashes[0], dataAHashes[2]
+      assert.equal res5, dataAHashes[0]
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined

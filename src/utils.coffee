@@ -17,7 +17,13 @@ addKeyPrefix = (object, prefix) ->
     delete object[key]
     object[prefix+key] = value
 
+class Queue
+  constructor: -> @data = []
+  push: (value) -> @data.push value
+  pop: -> @data.shift()
+
 module.exports =
   objectDiff: objectDiff
   objectDiffObject: objectDiffObject
   addKeyPrefix: addKeyPrefix
+  Queue: Queue

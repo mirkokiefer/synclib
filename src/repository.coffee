@@ -2,7 +2,7 @@
 async = require 'async'
 _ = require 'underscore'
 {union, values, keys, intersection, clone, contains, pluck} = _
-{objectDiff, objectDiffObject, addKeyPrefix} = require './utils'
+{objectDiff, objectDiffObject, addKeyPrefix, Queue} = require './utils'
 Branch = require './branch'
 TreeStore = require './tree-store'
 contentAddressable = require('content-addressable').memory
@@ -76,19 +76,23 @@ treeAncestors = (treeHash, treeStore) ->
   if tree then tree.ancestors else []
 treesAncestors = (treeStore) -> (trees) -> _.flatten (treeAncestors each, treeStore for each in trees)
 
-findCommonCommit = (tree1, tree2, treeStore) ->
-  if (not tree1) or (not tree2) then return undefined
-  [trees1, trees2] = ({current: [each], visited: []} for each in [tree1, tree2])
-  recurseUntilCommonCommit trees1, trees2, treeStore
-
-recurseUntilCommonCommit = (trees1, trees2, treeStore) ->
-  if (trees1.current.length == 0) and (trees2.current.length == 0) then return undefined
-  for [trees1, trees2] in [[trees1, trees2], [trees2, trees1]]
-    for each in trees1.current when _.contains trees2.visited.concat(trees2.current), each
-      return each
-  [trees1Parents, trees2Parents] = [trees1.current, trees2.current].map treesAncestors(treeStore)
-  merge = (oldTrees, newParents) -> current: newParents, visited:oldTrees.visited.concat(oldTrees.current)
-  recurseUntilCommonCommit merge(trees1, trees1Parents), merge(trees2, trees2Parents), treeStore
+findCommonCommit = (tree1Start, tree2Start, treeStore) ->
+  if (not tree1Start) or (not tree2Start) then return undefined
+  [walker1, walker2] = for each in [tree1Start, tree2Start]
+    walker = queue: new Queue, visited: {}    
+    walker.queue.push each
+    walker.visited[each]=null
+    walker
+  
+  while (tree1=walker1.queue.pop()) or (tree2=walker2.queue.pop())
+    for [tree, visited] in [[tree1, walker2.visited], [tree2, walker1.visited]]
+      if visited[tree] != undefined then return tree
+    for [tree, walker] in [[tree1, walker1], [tree2, walker2]] 
+      ancestors = treeAncestors tree, treeStore
+      for each in ancestors
+        walker.queue.push each
+        walker.visited[each] = tree
+  undefined
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
   if tree1Hash == tree2Hash then return trees: [], data: []
