@@ -18,7 +18,6 @@ addKeyPrefix = (object, prefix) ->
     object[prefix+key] = value
 
 module.exports =
-  hash: require 'sha1'
   objectDiff: objectDiff
   objectDiffObject: objectDiffObject
   addKeyPrefix: addKeyPrefix

@@ -10,8 +10,9 @@
     "async": "~0.1.22",
     "underscore": "~1.4.1",
     "content-addressable": "0.0.6",
-    "pluggable-store": "0.0.6",
-    "eventemitter2": "~0.4.10"
+    "pluggable-store": "0.0.8",
+    "eventemitter2": "~0.4.10",
+    "priority-queue": "0.0.1"
   },
   "devDependencies": {
     "mocha": "~1.6.0"
