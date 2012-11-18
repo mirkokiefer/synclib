@@ -209,6 +209,16 @@
         res5 = repo.commonCommit(dataAHashes[0], dataAHashes[2]);
         return assert.equal(res5, dataAHashes[0]);
       });
+      it('should find a common commit with paths', function() {
+        var expectedTree1Path, expectedTree2Path, res1, res2;
+        res1 = testBranchA.commonCommitWithPaths(testBranchB);
+        expectedTree1Path = [dataAHashes[1], dataAHashes[2]];
+        expectedTree2Path = dataBHashes.concat(dataAHashes[1]);
+        crossCheck(res1.tree1Path, expectedTree1Path);
+        crossCheck(res1.tree2Path, expectedTree2Path);
+        res2 = testBranchA.commonCommitWithPaths(dataAHashes[0]);
+        return assert.equal(res2.tree2Path.length, 1);
+      });
       return it('should not find a common commit', function() {
         var res;
         res = testBranchA.commonCommit(testBranchC);

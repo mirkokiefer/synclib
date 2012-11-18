@@ -112,6 +112,14 @@ describe 'branch', () ->
       assert.equal res4, dataAHashes[0]
       res5 = repo.commonCommit dataAHashes[0], dataAHashes[2]
       assert.equal res5, dataAHashes[0]
+    it 'should find a common commit with paths', ->
+      res1 = testBranchA.commonCommitWithPaths testBranchB
+      expectedTree1Path = [dataAHashes[1], dataAHashes[2]]
+      expectedTree2Path = dataBHashes.concat dataAHashes[1]
+      crossCheck res1.tree1Path, expectedTree1Path
+      crossCheck res1.tree2Path, expectedTree2Path
+      res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
+      assert.equal res2.tree2Path.length, 1
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined
