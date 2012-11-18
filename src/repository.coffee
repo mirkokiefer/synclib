@@ -74,7 +74,6 @@ allPaths = (treeHash, treeStore) ->
 treeAncestors = (treeHash, treeStore) ->
   tree = treeStore.read(treeHash)
   if tree then tree.ancestors else []
-treesAncestors = (treeStore) -> (trees) -> _.flatten (treeAncestors each, treeStore for each in trees)
 
 findCommonCommit = (tree1Start, tree2Start, treeStore) ->
   if (not tree1Start) or (not tree2Start) then return undefined
