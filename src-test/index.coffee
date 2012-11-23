@@ -7,9 +7,9 @@ _ = require 'underscore'
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
-crossCheck = (array1, array2) ->
-  assert.ok contains(array1, each) for each in array2
-  assert.ok contains(array2, each) for each in array1
+assertArray = (array, expectedArray) ->
+  assert.ok contains(array, each) for each in expectedArray
+  assert.ok contains(expectedArray, each) for each in array
 assertPathData = (data, expected) ->
   assert.equal data.length, expected.length
   for {path, value} in expected
@@ -122,8 +122,8 @@ describe 'branch', () ->
       res1 = testBranchA.commonCommitWithPaths testBranchB
       expectedTree1Path = [dataAHashes[1], dataAHashes[2]]
       expectedTree2Path = dataBHashes.concat dataAHashes[1]
-      crossCheck res1.tree1Path, expectedTree1Path
-      crossCheck res1.tree2Path, expectedTree2Path
+      assertArray res1.tree1Path, expectedTree1Path
+      assertArray res1.tree2Path, expectedTree2Path
       res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
       assert.equal res2.tree2Path.length, 1
     it 'should not find a common commit', ->
@@ -147,27 +147,27 @@ describe 'branch', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
       diff = testBranchA.deltaHashs from: [dataAHashes[0]]
       realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
     it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
       diff = testBranchA.deltaHashs from: ['non-existing']
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
     it 'should work without a ref - returns the full diff', () ->
       diff = testBranchA.deltaHashs()
       realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
     it 'should compute the hash to a disconnected branch', ->
       diff = testBranchA.deltaHashs to: [testBranchC]
       realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
     it 'should compute the hash to multiple trees', ->
       diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
       realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
     it 'should compute the delta from multiple trees to a single tree', ->
       diff = testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC]
       realDataHashs = union values(dataD[0]), values(dataD[1])
-      crossCheck diff.data, realDataHashs
+      assertArray diff.data, realDataHashs
   describe 'delta', () ->
     it 'should find the diff including the actual trees between heads in the past and the current head', () ->
       diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
@@ -187,7 +187,7 @@ describe 'branch', () ->
       oldHead = testBranchB.head
       head = testBranchB.merge ref: dataAHashes[2]
       headTree = repo._treeStore.read head
-      crossCheck headTree.ancestors, [dataAHashes[2], oldHead]
+      assertArray headTree.ancestors, [dataAHashes[2], oldHead]
     it 'should merge branchA into branchC (they do not have a common commit)', () ->
       oldHead = testBranchC.head
       oldDataC = testBranchC.allPaths()
@@ -198,7 +198,7 @@ describe 'branch', () ->
       )()
       head = testBranchC.merge ref: dataAHashes[2]
       headTree = repo._treeStore.read head
-      crossCheck headTree.ancestors, [dataAHashes[2], oldHead]
+      assertArray headTree.ancestors, [dataAHashes[2], oldHead]
       assertPathData testBranchC.allPaths(), expectedData
   describe 'commit deletes', ->
     it 'should delete data', ->
