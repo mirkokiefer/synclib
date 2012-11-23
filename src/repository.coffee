@@ -166,7 +166,7 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
         else
           newTree.childData[key] = if data1 == commonData then data2 else data1
     mergeChildTrees = ->
-      for key in keys(tree2.childTrees)
+      for key in union keys(tree2.childTrees), keys(tree1.childTrees)
         newTree.childTrees[key] = mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore
     mergeData()
     mergeChildTrees()

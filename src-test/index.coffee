@@ -3,13 +3,19 @@ assert = require 'assert'
 {Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-{union, difference, keys, values, pluck, contains} = _
+{union, difference, keys, values, pluck, contains, where} = _
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
 crossCheck = (array1, array2) ->
   assert.ok contains(array1, each) for each in array2
   assert.ok contains(array2, each) for each in array1
+assertPathData = (data, expected) ->
+  assert.equal data.length, expected.length
+  for {path, value} in expected
+    found = where data, path: path
+    assert.equal found.length, 1
+    assert.equal found[0].value, value
 
 testData = (branch, data) ->
   for path, value of data
@@ -181,12 +187,19 @@ describe 'branch', () ->
       oldHead = testBranchB.head
       head = testBranchB.merge ref: dataAHashes[2]
       headTree = repo._treeStore.read head
-      assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
+      crossCheck headTree.ancestors, [dataAHashes[2], oldHead]
     it 'should merge branchA into branchC (they do not have a common commit)', () ->
       oldHead = testBranchC.head
+      oldDataC = testBranchC.allPaths()
+      oldDataA = repo.allPaths dataAHashes[2]
+      expectedData = oldDataC.concat (->
+        existingPaths = pluck oldDataC, 'path'
+        oldDataA.filter (each) -> not contains existingPaths, each.path
+      )()
       head = testBranchC.merge ref: dataAHashes[2]
       headTree = repo._treeStore.read head
-      assert.equal _.difference(headTree.ancestors, [dataAHashes[2], oldHead]).length, 0
+      crossCheck headTree.ancestors, [dataAHashes[2], oldHead]
+      assertPathData testBranchC.allPaths(), expectedData
   describe 'commit deletes', ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
