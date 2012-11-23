@@ -328,6 +328,19 @@
       });
     });
     describe('merge', function() {
+      var expectedAfterMergeData;
+      expectedAfterMergeData = function(ref1, ref2) {
+        var expectedData, oldData1, oldData2;
+        oldData1 = repo.allPaths(ref1);
+        oldData2 = repo.allPaths(ref2);
+        return expectedData = oldData1.concat((function() {
+          var existingPaths;
+          existingPaths = pluck(oldData1, 'path');
+          return oldData2.filter(function(each) {
+            return !contains(existingPaths, each.path);
+          });
+        })());
+      };
       it('should merge branchB into branchA', function() {
         var diff, head, key, oldHead, strategy, value, _i, _len, _results;
         strategy = function(path, value1Hash, value2Hash) {
@@ -365,17 +378,9 @@
         return assertArray(headTree.ancestors, [dataAHashes[2], oldHead]);
       });
       return it('should merge branchA into branchC (they do not have a common commit)', function() {
-        var expectedData, head, headTree, oldDataA, oldDataC, oldHead;
+        var expectedData, head, headTree, oldHead;
         oldHead = testBranchC.head;
-        oldDataC = testBranchC.allPaths();
-        oldDataA = repo.allPaths(dataAHashes[2]);
-        expectedData = oldDataC.concat((function() {
-          var existingPaths;
-          existingPaths = pluck(oldDataC, 'path');
-          return oldDataA.filter(function(each) {
-            return !contains(existingPaths, each.path);
-          });
-        })());
+        expectedData = expectedAfterMergeData(testBranchC.head, dataAHashes[2]);
         head = testBranchC.merge({
           ref: dataAHashes[2]
         });

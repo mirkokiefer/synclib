@@ -174,6 +174,13 @@ describe 'branch', () ->
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
   describe 'merge', () ->
+    expectedAfterMergeData = (ref1, ref2) ->
+      oldData1 = repo.allPaths ref1
+      oldData2 = repo.allPaths ref2
+      expectedData = oldData1.concat (->
+        existingPaths = pluck oldData1, 'path'
+        oldData2.filter (each) -> not contains existingPaths, each.path
+      )()
     it 'should merge branchB into branchA', () ->
       strategy = (path, value1Hash, value2Hash) -> value2Hash
       oldHead = testBranchA.head
@@ -190,12 +197,7 @@ describe 'branch', () ->
       assertArray headTree.ancestors, [dataAHashes[2], oldHead]
     it 'should merge branchA into branchC (they do not have a common commit)', () ->
       oldHead = testBranchC.head
-      oldDataC = testBranchC.allPaths()
-      oldDataA = repo.allPaths dataAHashes[2]
-      expectedData = oldDataC.concat (->
-        existingPaths = pluck oldDataC, 'path'
-        oldDataA.filter (each) -> not contains existingPaths, each.path
-      )()
+      expectedData = expectedAfterMergeData testBranchC.head, dataAHashes[2]
       head = testBranchC.merge ref: dataAHashes[2]
       headTree = repo._treeStore.read head
       assertArray headTree.ancestors, [dataAHashes[2], oldHead]
