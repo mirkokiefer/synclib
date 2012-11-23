@@ -328,65 +328,122 @@
       });
     });
     describe('merge', function() {
-      var expectedAfterMergeData;
-      expectedAfterMergeData = function(ref1, ref2) {
-        var expectedData, oldData1, oldData2;
-        oldData1 = repo.allPaths(ref1);
-        oldData2 = repo.allPaths(ref2);
-        return expectedData = oldData1.concat((function() {
-          var existingPaths;
-          existingPaths = pluck(oldData1, 'path');
-          return oldData2.filter(function(each) {
-            return !contains(existingPaths, each.path);
-          });
-        })());
+      var assertMerge;
+      assertMerge = function(branch, expectedData, expectedHeads) {
+        var headTree;
+        headTree = repo._treeStore.read(branch.head);
+        assertArray(headTree.ancestors, expectedHeads);
+        return assertPathData(branch.allPaths(), expectedData);
       };
       it('should merge branchB into branchA', function() {
-        var diff, head, key, oldHead, strategy, value, _i, _len, _results;
+        var expectedData, oldHead, strategy;
+        expectedData = [
+          {
+            path: 'b/f/a',
+            value: 'hashB 3.2'
+          }, {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashB 3.0'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashB 3.1'
+          }, {
+            path: 'b/h',
+            value: 'hashB 0.0'
+          }, {
+            path: 'c/a',
+            value: 'hashB 1.0'
+          }, {
+            path: 'a',
+            value: 'hashB 2.0'
+          }, {
+            path: 'u',
+            value: 'hashB 2.1'
+          }
+        ];
+        oldHead = testBranchA.head;
         strategy = function(path, value1Hash, value2Hash) {
           return value2Hash;
         };
-        oldHead = testBranchA.head;
-        head = testBranchA.merge({
+        testBranchA.merge({
           ref: testBranchB,
           strategy: strategy
         });
-        assert.equal(testBranchA.head, head);
-        diff = repo.diff(oldHead, head);
-        _results = [];
-        for (_i = 0, _len = dataB.length; _i < _len; _i++) {
-          each = dataB[_i];
-          _results.push((function() {
-            var _results1;
-            _results1 = [];
-            for (key in each) {
-              value = each[key];
-              _results1.push(assert.ok((diff.data[key] === value) || (diff.data[key] === void 0)));
-            }
-            return _results1;
-          })());
-        }
-        return _results;
+        return assertMerge(testBranchA, expectedData, [oldHead, testBranchB.head]);
       });
       it('should merge branchA into branchB', function() {
-        var head, headTree, oldHead;
+        var expectedData, oldHead;
+        expectedData = [
+          {
+            path: 'b/f/a',
+            value: 'hashB 3.2'
+          }, {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashB 3.0'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashB 3.1'
+          }, {
+            path: 'b/h',
+            value: 'hashB 0.0'
+          }, {
+            path: 'c/a',
+            value: 'hashB 1.0'
+          }, {
+            path: 'a',
+            value: 'hashB 2.0'
+          }, {
+            path: 'u',
+            value: 'hashB 2.1'
+          }
+        ];
         oldHead = testBranchB.head;
-        head = testBranchB.merge({
+        testBranchB.merge({
           ref: dataAHashes[2]
         });
-        headTree = repo._treeStore.read(head);
-        return assertArray(headTree.ancestors, [dataAHashes[2], oldHead]);
+        assertMerge(testBranchB, expectedData, [oldHead, dataAHashes[2]]);
+        return assert.equal(testBranchB.head, testBranchA.head);
       });
       return it('should merge branchA into branchC (they do not have a common commit)', function() {
-        var expectedData, head, headTree, oldHead;
-        oldHead = testBranchC.head;
-        expectedData = expectedAfterMergeData(testBranchC.head, dataAHashes[2]);
-        head = testBranchC.merge({
+        var expectedData, oldHeadC;
+        expectedData = [
+          {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashA 1.1'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashA 2.0'
+          }, {
+            path: 'c/a',
+            value: 'hashC 0.1'
+          }, {
+            path: 'a',
+            value: 'hashC 1.0'
+          }
+        ];
+        oldHeadC = testBranchC.head;
+        testBranchC.merge({
           ref: dataAHashes[2]
         });
-        headTree = repo._treeStore.read(head);
-        assertArray(headTree.ancestors, [dataAHashes[2], oldHead]);
-        return assertPathData(testBranchC.allPaths(), expectedData);
+        return assertMerge(testBranchC, expectedData, [oldHeadC, dataAHashes[2]]);
       });
     });
     describe('commit deletes', function() {
