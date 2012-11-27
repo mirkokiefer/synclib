@@ -259,10 +259,12 @@ class Repository
         findDelta commonCommits, toEach, obj._treeStore, obj._commitStore, (err, newDelta) ->
           cb null, mergeDiffs diff, newDelta
     async.reduce to, diff, deltaForEach, cb
-  deltaData: (delta) ->
-    commits: (@commitStore.read each for each in delta.commits)
-    trees: (@treeStore.read each for each in delta.trees)
-    values: delta.values
+  deltaData: (delta, cb) ->
+    obj = this
+    commits = (cb) -> async.map delta.commits, ((each, cb) -> obj.commitStore.read each, cb), cb
+    trees = (cb) -> async.map delta.trees, ((each, cb) -> obj.treeStore.read each, cb), cb
+    async.parallel [commits, trees], (err, [commitsRes, treesRes]) ->
+      cb null, commits: commitsRes, trees: treesRes, values: delta.values
   merge: (commit1, commit2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash

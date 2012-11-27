@@ -297,7 +297,7 @@
         });
       });
     });
-    return describe('deltaHashs', function() {
+    describe('deltaHashs', function() {
       it('should find the diff as hashes between heads in the past and the current head', function(done) {
         return testBranchA.deltaHashs({
           from: [dataAHashes[0]]
@@ -357,13 +357,21 @@
         });
       });
     });
-    /*describe 'delta', () ->
-      it 'should find the diff including the actual trees and commits', () ->
-        diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
-        assert.equal diff.trees.length, 5
-        assert.ok diff.trees[0].length > 40
-        assert.ok diff.commits[0].length > 40
-    describe 'merge', () ->
+    return describe('delta', function() {
+      return it('should find the diff including the actual trees and commits', function(done) {
+        return testBranchA.deltaHashs({
+          from: [dataAHashes[0]]
+        }, function(err, diffHashs) {
+          return repo.deltaData(diffHashs, function(err, diff) {
+            assert.equal(diff.trees.length, 5);
+            assert.ok(diff.trees[0].length > 40);
+            assert.ok(diff.commits[0].length > 40);
+            return done();
+          });
+        });
+      });
+    });
+    /*describe 'merge', () ->
       assertMerge = (branch, expectedData, expectedHeads) ->
         head = repo._commitStore.read branch.head
         assertArray head.ancestors, expectedHeads
