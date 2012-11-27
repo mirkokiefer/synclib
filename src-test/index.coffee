@@ -177,8 +177,8 @@ describe 'branch', () ->
       assert.ok diff.commits[0].length > 40
   ###describe 'merge', () ->
     assertMerge = (branch, expectedData, expectedHeads) ->
-      headTree = repo._treeStore.read branch.head
-      assertArray headTree.ancestors, expectedHeads
+      head = repo._commitStore.read branch.head
+      assertArray head.ancestors, expectedHeads
       assertPathData branch.allPaths(), expectedData
     it 'should merge branchB into branchA', () ->
       expectedData = [
@@ -228,7 +228,7 @@ describe 'branch', () ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
       testBranchB.commit data
-      testData testBranchB, data
+      testData testBranchB, data###
   describe 'treeAtPath', ->
     it 'should read the root tree', ->
       tree = testBranchA.treeAtPath ''
@@ -236,7 +236,7 @@ describe 'branch', () ->
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
       assert.equal tree.childData.g, dataA[1]['b/f/g']
-  describe 'paths', ->
+  ###describe 'paths', ->
     it 'should return all tracked paths', ->
       testBranch = repo.branch dataAHashes[0]
       expectedPaths = keys dataA[0]
