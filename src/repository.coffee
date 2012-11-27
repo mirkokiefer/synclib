@@ -135,8 +135,6 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
     data: union(diff.data, prependPath(childDiff.data))
   union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
-mergeDiffs = (oldDiff, newDiff) -> trees: union(oldDiff.trees, newDiff.trees), data: union(oldDiff.data, newDiff.data)
-
 findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
   if tree1Hash == tree2Hash then return trees: [], data: []
   [tree1, tree2] = for each in [tree1Hash, tree2Hash]
@@ -145,24 +143,34 @@ findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
   diff.data = (value for key, value of tree2.childData when tree1.childData[key] != value)
   mapChildTree = (diff, key) ->
     childDiff = findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore
-    mergeDiffs diff, childDiff
+    trees: union(diff.trees, childDiff.trees), data: union(diff.data, childDiff.data)
   union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
-findDelta = (commonTreeHashs, toTreeHash, treeStore) ->
-  if contains commonTreeHashs, toTreeHash then return trees: [], data: []
-  toTree = treeStore.read toTreeHash
-  ancestorDiffs = for ancestor in toTree.ancestors
-    findDeltaDiff(ancestor, toTreeHash, treeStore)
-  if toTree.ancestors.length == 1
-    mergeDiffs ancestorDiffs[0], findDelta(commonTreeHashs, toTree.ancestors[0], treeStore)
-  else if toTree.ancestors.length == 0
-    findDeltaDiff(null, toTreeHash, treeStore)
+mergeDiffs = (oldDiff, newDiff) ->
+  if not newDiff.commits then newDiff.commits = []
+  commits: union(oldDiff.commits, newDiff.commits),
+  trees: union(oldDiff.trees, newDiff.trees),
+  data: union(oldDiff.data, newDiff.data)
+
+findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore) ->
+  if contains commonCommitHashs, toCommitHash then return commits: [], trees: [], data: []
+  diff = commits: [toCommitHash], trees: [], data: []
+  toCommit = commitStore.read toCommitHash
+  ancestorDiffs = for ancestor in toCommit.ancestors
+    findDeltaDiff(commitStore.read(ancestor).tree, toCommit.tree, treeStore)
+  if toCommit.ancestors.length == 1
+    diff = mergeDiffs diff, ancestorDiffs[0]
+    mergeDiffs diff, findDelta(commonCommitHashs, toCommit.ancestors[0], treeStore, commitStore)
+  else if toCommit.ancestors.length == 0
+    mergeDiffs diff, findDeltaDiff(null, toCommit.tree, treeStore)
   else
-    diff = trees: union(pluck(ancestorDiffs, 'trees')...), data: intersection(pluck(ancestorDiffs, 'data')...)
+    diff = mergeDiffs diff,
+      trees: intersection(pluck(ancestorDiffs, 'trees')...),
+      data: intersection(pluck(ancestorDiffs, 'data')...)
     reduceFun = (diff, ancestor) ->
-      newCommonTreeHashs = union(findCommonCommit ancestor, each, treeStore for each in commonTreeHashs)
-      mergeDiffs diff, findDelta(newCommonTreeHashs, ancestor, treeStore)
-    toTree.ancestors.reduce reduceFun, diff
+      newCommonTreeHashs = union(findCommonCommit ancestor, each, treeStore for each in commonCommitHashs)
+      mergeDiffs diff, findDelta(newCommonTreeHashs, ancestor, treeStore, commitStore)
+    toCommit.ancestors.reduce reduceFun, diff
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
@@ -223,13 +231,15 @@ class Repository
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
   deltaHashs: ({from, to}) ->
-    diff = trees: [], data: []
+    diff = commits: [], trees: [], data: []
     for toEach in to
-      commonTrees = (@commonCommit fromEach, toEach for fromEach in from)
-      diff = mergeDiffs diff, findDelta(commonTrees, toEach, @_treeStore)
+      commonCommits = (@commonCommit fromEach, toEach for fromEach in from)
+      diff = mergeDiffs diff, findDelta(commonCommits, toEach, @_treeStore, @_commitStore)
     diff
   deltaData: (delta) ->
-    {trees: (@treeStore.read each for each in delta.trees), data: delta.data}
+    commits: (@commitStore.read each for each in delta.commits)
+    trees: (@treeStore.read each for each in delta.trees)
+    data: delta.data
   merge: (tree1, tree2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
