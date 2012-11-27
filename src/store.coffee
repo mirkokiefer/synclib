@@ -4,13 +4,12 @@ computeHash = require('./utils').hash
 
 class Store
   constructor: (@backend, {@serialize, @deserialize}) ->
-  write: (obj) ->
+  write: (obj, cb) ->
     json = @serialize obj
-    @backend.write json
-  read: (hash) ->
-    json = @backend.read hash
-    if json then @deserialize json else undefined
-  readAll: (hashs) -> @read each for each in hashs
-  writeAll: (trees) -> @write each for each in trees
+    @backend.write json, cb
+  read: (hash, cb) ->
+    obj = this
+    @backend.read hash, (err, json) ->
+      if json then cb null, obj.deserialize json else cb err, undefined
 
 module.exports = Store

@@ -3,7 +3,7 @@ assert = require 'assert'
 {Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-{union, difference, keys, values, pluck, contains, where} = _
+{union, difference, keys, values, pluck, contains, where, pairs} = _
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
@@ -17,16 +17,19 @@ assertPathData = (data, expected) ->
     assert.equal found.length, 1
     assert.equal found[0].value, value
 
-testData = (branch, data) ->
-  for path, value of data
-    assert.equal branch.dataAtPath(path), value
+testData = (branch, data, cb) ->
+  forEach = ([path, expectedValue], cb) ->
+    branch.dataAtPath path, (err, value) ->
+      assert.equal value, expectedValue
+      cb()
+  async.forEach pairs(data), forEach, cb
 
-testCommitAncestors = (commitHash, hashs) ->
+testCommitAncestors = (commitHash, hashs, cb) ->
   [first, rest...] = hashs
   assert.equal commitHash, first
   if rest.length > 0
-    {ancestors} = repo._commitStore.read commitHash
-    testCommitAncestors ancestors[0], rest
+    repo._commitStore.read commitHash, (err, {ancestors}) ->
+      testCommitAncestors ancestors[0], rest, cb
 
 dataA = [
   {'a': "hashA 0.0", 'b/c': "hashA 0.1", 'b/d': "hashA 0.2"}
@@ -76,37 +79,40 @@ c0 - c1 <- C
 
 describe 'branch', () ->
   describe 'commit', () ->
-    it 'should commit and read objects', () ->
-      head = testBranchA.commit dataA[0]
-      assert.equal head, dataAHashes[0]
-      testData testBranchA, dataA[0]
-    it 'should create a child commit', () ->
-      head = testBranchA.commit dataA[1]
-      assert.equal head, dataAHashes[1]
-      testData testBranchA, dataA[1]
-      d = testBranchA.dataAtPath 'b/d'
-      assert.equal d, dataA[0]['b/d']
-    it 'should not create a new commit', ->
+    it 'should commit and read objects', (done) ->
+      testBranchA.commit dataA[0], (err, head) ->
+        assert.equal head, dataAHashes[0]
+        testData testBranchA, dataA[0]
+        done()
+    it 'should create a child commit', (done) ->
+      testBranchA.commit dataA[1], (err, head) ->
+        assert.equal head, dataAHashes[1]
+        testData testBranchA, dataA[1]
+        testBranchA.dataAtPath 'b/d', (err, d) ->
+          assert.equal d, dataA[0]['b/d']
+          done()
+    it 'should not create a new commit', (done) ->
       oldHead = testBranchA.head
-      head = testBranchA.commit dataA[1]
-      assert.equal head, oldHead
-    it 'should read from a previous commit', () ->
+      testBranchA.commit dataA[1], (err, head) ->
+        assert.equal head, oldHead
+        done()
+    it 'should read from a previous commit', (done) ->
       head1 = testBranchA.head
-      head2 = testBranchA.commit dataA[2]
-      assert.equal head2, dataAHashes[2]
-      eHead1 = repo.dataAtPath head1, 'b/e'
-      assert.equal eHead1, dataA[1]['b/e']
-      eHead2 = repo.dataAtPath head2, 'b/e'
-      assert.equal eHead2, dataA[2]['b/e']
-      eHead2 = testBranchA.dataAtPath 'b/e'
-      assert.equal eHead2, dataA[2]['b/e']
-    it 'should populate more test branches', () ->
-      commitData = ({branch, data, ref}) ->
+      testBranchA.commit dataA[2], (err, head2) ->
+        assert.equal head2, dataAHashes[2]
+        repo.dataAtPath head1, 'b/e', (err, eHead1) ->
+          assert.equal eHead1, dataA[1]['b/e']
+          repo.dataAtPath head2, 'b/e', (err, eHead2) ->
+            assert.equal eHead2, dataA[2]['b/e']
+            done()
+    it 'should populate more test branches', (done) ->
+      commitData = ({branch, data, ref}, cb) ->
         branch.head = ref
-        branch.commit each for each in data
-      commitData each for each in [commitB, commitC, commitD]
-      testCommitAncestors testBranchB.head, dataBHashes
-  describe 'commonCommit', () ->
+        async.forEach data, ((each, cb) -> branch.commit each, cb), cb
+      async.forEach [commitB, commitC, commitD], commitData, ->
+        testCommitAncestors testBranchB.head, dataBHashes
+        done()
+  ###describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', ->
       res1 = testBranchA.commonCommit testBranchB

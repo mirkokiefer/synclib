@@ -1,7 +1,7 @@
 
 async = require 'async'
 _ = require 'underscore'
-{union, values, keys, intersection, clone, contains, pluck} = _
+{union, values, keys, intersection, clone, contains, pluck, pairs} = _
 {objectDiff, objectDiffObject, addKeyPrefix, Queue} = require './utils'
 Branch = require './branch'
 Store = require './store'
@@ -43,22 +43,25 @@ groupCurrentAndChildTreeData = (data) ->
       childTreeData[key].push {path, value}
   [currentTreeData, childTreeData]
 
-commit = (treeHash, data, treeStore) ->
-  if data.length == 0 then return treeHash
-  currentTree = if treeHash then treeStore.read treeHash else new Tree()
-  [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
-  for key, value of currentTreeData
-    if currentTree.childData[key] != value
-      if value then currentTree.childData[key] = value
-      else delete currentTree.childData[key]
-  for key, data of childTreeData
-    previousTree = currentTree.childTrees[key]
-    newChildTree = commit previousTree, data, treeStore
-    if newChildTree != previousTree
-      if newChildTree then currentTree.childTrees[key] = newChildTree
-      else delete currentTree.childTrees[key]
-  if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
-    treeStore.write currentTree
+commit = (treeHash, data, treeStore, cb) ->
+  if data.length == 0 then return cb null, treeHash
+  treeStore.read treeHash, (err, currentTree) ->
+    if not currentTree then currentTree = new Tree()
+    [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
+    for key, value of currentTreeData
+      if currentTree.childData[key] != value
+        if value then currentTree.childData[key] = value
+        else delete currentTree.childData[key]
+    forEachChildTree = ([key, data], cb) ->
+      previousTree = currentTree.childTrees[key]
+      commit previousTree, data, treeStore, (err, newChildTree) ->
+        if newChildTree != previousTree
+          if newChildTree then currentTree.childTrees[key] = newChildTree
+          else delete currentTree.childTrees[key]
+        cb()
+    async.forEach pairs(childTreeData), forEachChildTree, ->
+      if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
+        treeStore.write currentTree, cb
 
 readTreeAtPath = (treeHash, treeStore, path) ->
   tree = treeStore.read treeHash
@@ -67,13 +70,13 @@ readTreeAtPath = (treeHash, treeStore, path) ->
     key = path.pop()
     readTreeAtPath tree.childTrees[key], treeStore, path
 
-read = (treeHash, treeStore, path) ->
+read = (treeHash, treeStore, path, cb) ->
   if not treeHash then undefined
   else
-    tree = treeStore.read treeHash
-    key = path.pop()
-    if path.length == 0 then tree.childData[key]
-    else read tree.childTrees[key], treeStore, path
+    treeStore.read treeHash, (err, tree) ->
+      key = path.pop()
+      if path.length == 0 then cb null, tree.childData[key]
+      else read tree.childTrees[key], treeStore, path, cb
 
 allPaths = (treeHash, treeStore) ->
   tree = treeStore.read treeHash
@@ -198,23 +201,26 @@ class Repository
     @_treeStore = new Store @treeStore, Tree
     @_commitStore = new Store @commitStore, Commit
   branch: (treeHash) -> new Branch this, treeHash
-  commit: (oldCommitHash, data) ->
-    oldTree = if oldCommitHash then @_commitStore.read(oldCommitHash).tree
-    parsedData = (path: path.split('/').reverse(), value: value for path, value of data)
-    newTree = commit oldTree, parsedData, @_treeStore
-    if newTree == oldTree then return oldCommitHash
-    else
-      ancestors = if oldCommitHash then [oldCommitHash] else []
-      newCommit = new Commit ancestors: ancestors, tree: newTree
-      @_commitStore.write newCommit
+  commit: (oldCommitHash, data, cb) ->
+    obj = this
+    @_commitStore.read oldCommitHash, (err, oldCommit) ->
+      oldTree = if oldCommit then oldCommit.tree
+      parsedData = (path: path.split('/').reverse(), value: value for path, value of data)
+      commit oldTree, parsedData, obj._treeStore, (err, newTree) ->
+        if newTree == oldTree then cb null, oldCommitHash
+        else
+          ancestors = if oldCommitHash then [oldCommitHash] else []
+          newCommit = new Commit ancestors: ancestors, tree: newTree
+          obj._commitStore.write newCommit, cb
   treeAtPath: (commitHash, path) ->
     path = if path == '' then [] else path.split('/').reverse()
     {tree} = @_commitStore.read commitHash
     readTreeAtPath tree, @_treeStore, path    
-  dataAtPath: (commitHash, path) ->
+  dataAtPath: (commitHash, path, cb) ->
+    obj = this
     path = path.split('/').reverse()
-    {tree} = @_commitStore.read commitHash
-    read tree, @_treeStore, path
+    @_commitStore.read commitHash, (err, {tree}) ->
+      read tree, obj._treeStore, path, cb
   allPaths: (commitHash) ->
     {tree} = @_commitStore.read commitHash
     path:path.join('/'), value:value for {path, value} in allPaths tree, @_treeStore

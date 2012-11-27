@@ -8,12 +8,14 @@ normalize = (commitOrBranch) -> if commitOrBranch.constructor == Branch then com
 
 class Branch extends EventEmitter
   constructor: (@repo, @head) ->
-  commit: (data) ->
-    @head = @repo.commit @head, data
-    @emit 'postCommit', @head
-    @head
+  commit: (data, cb) ->
+    obj = this
+    @repo.commit @head, data, (err, head) ->
+      obj.head = head
+      obj.emit 'postCommit', @head
+      cb null, head
   treeAtPath: (path) -> @repo.treeAtPath @head, path
-  dataAtPath: (path) -> @repo.dataAtPath @head, path
+  dataAtPath: (path, cb) -> @repo.dataAtPath @head, path, cb
   allPaths: -> @repo.allPaths @head
   commonCommit: (ref) -> @repo.commonCommit @head, normalize ref
   commonCommitWithPaths: (ref) -> @repo.commonCommitWithPaths @head, normalize ref
