@@ -157,7 +157,7 @@
 
 
   describe('branch', function() {
-    return describe('commit', function() {
+    describe('commit', function() {
       it('should commit and read objects', function() {
         var head;
         head = testBranchA.commit(dataA[0]);
@@ -211,31 +211,37 @@
         return testCommitAncestors(testBranchB.head, dataBHashes);
       });
     });
-    /*describe 'commonCommit', () ->
-      # should maybe output the path as well
-      it 'should find a common commit', ->
-        res1 = testBranchA.commonCommit testBranchB
-        assert.equal res1, dataAHashes[1]
-        res2 = testBranchA.commonCommit testBranchD
-        assert.equal res2, dataAHashes[1]
-        res3 = testBranchA.commonCommit dataAHashes[0]
-        assert.equal res3, dataAHashes[0]
-        res4 = repo.commonCommit dataAHashes[2], dataAHashes[0]
-        assert.equal res4, dataAHashes[0]
-        res5 = repo.commonCommit dataAHashes[0], dataAHashes[2]
-        assert.equal res5, dataAHashes[0]
-      it 'should find a common commit with paths', ->
-        res1 = testBranchA.commonCommitWithPaths testBranchB
-        expectedTree1Path = [dataAHashes[1], dataAHashes[2]]
-        expectedTree2Path = dataBHashes.concat dataAHashes[1]
-        assertArray res1.tree1Path, expectedTree1Path
-        assertArray res1.tree2Path, expectedTree2Path
-        res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
-        assert.equal res2.tree2Path.length, 1
-      it 'should not find a common commit', ->
-        res = testBranchA.commonCommit testBranchC
-        assert.equal res, undefined
-    describe 'diff', () ->
+    return describe('commonCommit', function() {
+      it('should find a common commit', function() {
+        var res1, res2, res3, res4, res5;
+        res1 = testBranchA.commonCommit(testBranchB);
+        assert.equal(res1, dataAHashes[1]);
+        res2 = testBranchA.commonCommit(testBranchD);
+        assert.equal(res2, dataAHashes[1]);
+        res3 = testBranchA.commonCommit(dataAHashes[0]);
+        assert.equal(res3, dataAHashes[0]);
+        res4 = repo.commonCommit(dataAHashes[2], dataAHashes[0]);
+        assert.equal(res4, dataAHashes[0]);
+        res5 = repo.commonCommit(dataAHashes[0], dataAHashes[2]);
+        return assert.equal(res5, dataAHashes[0]);
+      });
+      it('should find a common commit with paths', function() {
+        var expectedCommit1Path, expectedCommit2Path, res1, res2;
+        res1 = testBranchA.commonCommitWithPaths(testBranchB);
+        expectedCommit1Path = [dataAHashes[1], dataAHashes[2]];
+        expectedCommit2Path = dataBHashes.concat(dataAHashes[1]);
+        assertArray(res1.commit1Path, expectedCommit1Path);
+        assertArray(res1.commit2Path, expectedCommit2Path);
+        res2 = testBranchA.commonCommitWithPaths(dataAHashes[0]);
+        return assert.equal(res2.commit2Path.length, 1);
+      });
+      return it('should not find a common commit', function() {
+        var res;
+        res = testBranchA.commonCommit(testBranchC);
+        return assert.equal(res, void 0);
+      });
+    });
+    /*describe 'diff', () ->
       it 'should find the diff between two trees', ->
         diff = repo.diff dataAHashes[0], dataAHashes[1]
         assert.equal diff.data.length, _.keys(dataA[1]).length

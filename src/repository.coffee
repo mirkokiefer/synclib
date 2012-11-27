@@ -88,9 +88,9 @@ allPaths = (treeHash, treeStore) ->
     paths = paths.concat res
   paths.concat (path:[key], value:value for key, value of tree.childData)
 
-treeAncestors = (treeHash, treeStore) ->
-  tree = treeStore.read(treeHash)
-  if tree then tree.ancestors else []
+commitAncestors = (commitHash, commitStore) ->
+  commitObj = commitStore.read(commitHash)
+  if commitObj then commitObj.ancestors else []
 
 findWalkPath = (tree, visited) ->
   arr = [tree]
@@ -98,28 +98,27 @@ findWalkPath = (tree, visited) ->
     arr.push tree
   arr
 
-findCommonCommitWithPaths = (tree1Start, tree2Start, treeStore) ->
-  if (not tree1Start) or (not tree2Start) then return undefined
-  [walker1, walker2] = for each in [tree1Start, tree2Start]
+findCommonCommitWithPaths = (commit1Start, commit2Start, commitStore) ->
+  if (not commit1Start) or (not commit2Start) then return undefined
+  [walker1, walker2] = for each in [commit1Start, commit2Start]
     walker = queue: new Queue, visited: {}    
     walker.queue.push each
     walker.visited[each]=null
     walker
-  
-  while (tree1=walker1.queue.pop()) or (tree2=walker2.queue.pop())
-    for [tree, visited] in [[tree1, walker2.visited], [tree2, walker1.visited]]
-      if visited[tree] != undefined
-        return tree: tree, tree1Path: findWalkPath(tree, walker1.visited), tree2Path: findWalkPath(tree, walker2.visited)
-    for [tree, walker] in [[tree1, walker1], [tree2, walker2]] 
-      ancestors = treeAncestors tree, treeStore
+  while (commit1=walker1.queue.pop()) or (commit2=walker2.queue.pop())
+    for [commitHash, visited] in [[commit1, walker2.visited], [commit2, walker1.visited]]
+      if visited[commitHash] != undefined
+        return commit: commitHash, commit1Path: findWalkPath(commitHash, walker1.visited), commit2Path: findWalkPath(commitHash, walker2.visited)
+    for [commitHash, walker] in [[commit1, walker1], [commit2, walker2]] 
+      ancestors = commitAncestors commitHash, commitStore
       for each in ancestors
         walker.queue.push each
-        if not walker.visited[each] then walker.visited[each] = tree
+        if not walker.visited[each] then walker.visited[each] = commitHash
   undefined
 
-findCommonCommit = (tree1, tree2, treeStore) ->
-  res = findCommonCommitWithPaths tree1, tree2, treeStore
-  if res then res.tree
+findCommonCommit = (commit1, commit2, commitStore) ->
+  res = findCommonCommitWithPaths commit1, commit2, commitStore
+  if res then res.commit
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
   if tree1Hash == tree2Hash then return trees: [], data: []
@@ -215,8 +214,8 @@ class Repository
     read tree, @_treeStore, path
   allPaths: (treeHash) ->
     path:path.join('/'), value:value for {path, value} in allPaths treeHash, @_treeStore
-  commonCommit: (tree1, tree2) -> findCommonCommit tree1, tree2, @_treeStore
-  commonCommitWithPaths: (tree1, tree2) -> findCommonCommitWithPaths tree1, tree2, @_treeStore
+  commonCommit: (commit1, commit2) -> findCommonCommit commit1, commit2, @_commitStore
+  commonCommitWithPaths: (commit1, commit2) -> findCommonCommitWithPaths commit1, commit2, @_commitStore
   diff: (tree1, tree2) ->
     diff = findDiffWithPaths tree1, tree2, @_treeStore
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array

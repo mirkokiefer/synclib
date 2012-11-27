@@ -106,7 +106,7 @@ describe 'branch', () ->
         branch.commit each for each in data
       commitData each for each in [commitB, commitC, commitD]
       testCommitAncestors testBranchB.head, dataBHashes
-  ###describe 'commonCommit', () ->
+  describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', ->
       res1 = testBranchA.commonCommit testBranchB
@@ -121,16 +121,16 @@ describe 'branch', () ->
       assert.equal res5, dataAHashes[0]
     it 'should find a common commit with paths', ->
       res1 = testBranchA.commonCommitWithPaths testBranchB
-      expectedTree1Path = [dataAHashes[1], dataAHashes[2]]
-      expectedTree2Path = dataBHashes.concat dataAHashes[1]
-      assertArray res1.tree1Path, expectedTree1Path
-      assertArray res1.tree2Path, expectedTree2Path
+      expectedCommit1Path = [dataAHashes[1], dataAHashes[2]]
+      expectedCommit2Path = dataBHashes.concat dataAHashes[1]
+      assertArray res1.commit1Path, expectedCommit1Path
+      assertArray res1.commit2Path, expectedCommit2Path
       res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
-      assert.equal res2.tree2Path.length, 1
+      assert.equal res2.commit2Path.length, 1
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined
-  describe 'diff', () ->
+  ###describe 'diff', () ->
     it 'should find the diff between two trees', ->
       diff = repo.diff dataAHashes[0], dataAHashes[1]
       assert.equal diff.data.length, _.keys(dataA[1]).length
