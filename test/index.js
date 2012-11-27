@@ -243,24 +243,24 @@
     });
     describe('diff', function() {
       it('should find the diff between two commits', function() {
-        var diff, hash, path, _i, _len, _ref1, _ref2;
+        var diff, path, value, _i, _len, _ref1, _ref2;
         diff = repo.diff(dataAHashes[0], dataAHashes[1]);
-        assert.equal(diff.data.length, _.keys(dataA[1]).length);
-        _ref1 = diff.data;
+        assert.equal(diff.values.length, _.keys(dataA[1]).length);
+        _ref1 = diff.values;
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          _ref2 = _ref1[_i], path = _ref2.path, hash = _ref2.hash;
-          assert.equal(hash, dataA[1][path]);
+          _ref2 = _ref1[_i], path = _ref2.path, value = _ref2.value;
+          assert.equal(value, dataA[1][path]);
         }
         return assert.equal(diff.trees.length, 3);
       });
       it('should find the diff between null and a commit', function() {
-        var diff, hash, path, _i, _len, _ref1, _ref2, _results;
+        var diff, path, value, _i, _len, _ref1, _ref2, _results;
         diff = repo.diff(null, dataAHashes[0]);
-        _ref1 = diff.data;
+        _ref1 = diff.values;
         _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          _ref2 = _ref1[_i], path = _ref2.path, hash = _ref2.hash;
-          _results.push(assert.equal(hash, dataA[0][path]));
+          _ref2 = _ref1[_i], path = _ref2.path, value = _ref2.value;
+          _results.push(assert.equal(value, dataA[0][path]));
         }
         return _results;
       });
@@ -277,7 +277,7 @@
           from: [dataAHashes[0]]
         });
         realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
       it('should find the diff between a head in the past that doesnt exist and the current head', function() {
         var diff, realDataHashs;
@@ -285,29 +285,29 @@
           from: ['non-existing']
         });
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
       it('should work without a ref - returns the full diff', function() {
         var diff, realDataHashs;
         diff = testBranchA.deltaHashs();
         realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
-      it('should compute the hash to a disconnected branch', function() {
+      it('should compute the value to a disconnected branch', function() {
         var diff, realDataHashs;
         diff = testBranchA.deltaHashs({
           to: [testBranchC]
         });
         realDataHashs = _.union(_.values(dataC[0]), _.values(dataC[1]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
-      it('should compute the hash from a single commit to multiple commits', function() {
+      it('should compute the value from a single commit to multiple commits', function() {
         var diff, realDataHashs;
         diff = testBranchD.deltaHashs({
           to: [testBranchA, testBranchB]
         });
         realDataHashs = _.union(_.values(dataA[2]), _.values(dataB[3]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
       return it('should compute the delta from multiple commits to a single commit', function() {
         var diff, realDataHashs;
@@ -315,7 +315,7 @@
           from: [testBranchA, testBranchB, testBranchC]
         });
         realDataHashs = union(values(dataD[0]), values(dataD[1]));
-        return assertArray(diff.data, realDataHashs);
+        return assertArray(diff.values, realDataHashs);
       });
     });
     describe('delta', function() {

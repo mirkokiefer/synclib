@@ -34,35 +34,31 @@ Commit.deserialize = (string) ->
   new Commit ancestors: ancestors, tree: tree, info: info
 
 groupCurrentAndChildTreeData = (data) ->
-  currentTreeData = {}
-  childTreeData = {}
-  for {path, hash} in data
+  currentTreeData = {}; childTreeData = {}
+  for {path, value} in data
     key = path.pop()
-    if path.length == 0 then currentTreeData[key] = hash
+    if path.length == 0 then currentTreeData[key] = value
     else
       if not childTreeData[key] then childTreeData[key] = []
-      childTreeData[key].push {path, hash}
+      childTreeData[key].push {path, value}
   [currentTreeData, childTreeData]
 
 commit = (treeHash, data, treeStore) ->
-  changedTree = false
+  if data.length == 0 then return treeHash
   currentTree = if treeHash then treeStore.read treeHash else new Tree()
   [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
-  for key, hash of currentTreeData
-    if currentTree.childData[key] != hash
-      changedTree = true
-      if hash then currentTree.childData[key]=hash
+  for key, value of currentTreeData
+    if currentTree.childData[key] != value
+      if value then currentTree.childData[key] = value
       else delete currentTree.childData[key]
   for key, data of childTreeData
     previousTree = currentTree.childTrees[key]
     newChildTree = commit previousTree, data, treeStore
     if newChildTree != previousTree
-      changedTree = true
       if newChildTree then currentTree.childTrees[key] = newChildTree
       else delete currentTree.childTrees[key]
   if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
-    if changedTree then treeStore.write currentTree
-    else treeHash
+    treeStore.write currentTree
 
 readTreeAtPath = (treeHash, treeStore, path) ->
   tree = treeStore.read treeHash
@@ -121,40 +117,40 @@ findCommonCommit = (commit1, commit2, commitStore) ->
   if res then res.commit
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], data: []
+  if tree1Hash == tree2Hash then return trees: [], values: []
   [tree1, tree2] = for each in [tree1Hash, tree2Hash]
     if each then treeStore.read each else new Tree()
-  diff = data: [], trees: [{path:[], hash: if tree2Hash then tree2Hash else null}]
-  updatedData = ({path:[key], hash:value} for key, value of tree2.childData when tree1.childData[key] != value)
-  deletedData = ({path:[key], hash:null} for key of tree1.childData when tree2.childData[key] == undefined)
-  diff.data = union updatedData, deletedData
+  diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
+  updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
+  deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
+  diff.values = union updatedData, deletedData
   mapChildTree = (diff, key) ->
     childDiff = findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore
-    prependPath = (pathHashs) -> {path: [key, path...], hash: hash} for {path, hash} in pathHashs
+    prependPath = (pathHashs) -> {path: [key, path...], value: value} for {path, value} in pathHashs
     trees: union(diff.trees, prependPath(childDiff.trees)),
-    data: union(diff.data, prependPath(childDiff.data))
+    values: union(diff.values, prependPath(childDiff.values))
   union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
 findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], data: []
+  if tree1Hash == tree2Hash then return trees: [], values: []
   [tree1, tree2] = for each in [tree1Hash, tree2Hash]
     if each then treeStore.read each else new Tree()
-  diff = data: [], trees: if tree2Hash then [tree2Hash] else []
-  diff.data = (value for key, value of tree2.childData when tree1.childData[key] != value)
+  diff = values: [], trees: if tree2Hash then [tree2Hash] else []
+  diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
   mapChildTree = (diff, key) ->
     childDiff = findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore
-    trees: union(diff.trees, childDiff.trees), data: union(diff.data, childDiff.data)
+    trees: union(diff.trees, childDiff.trees), values: union(diff.values, childDiff.values)
   union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
 
 mergeDiffs = (oldDiff, newDiff) ->
   if not newDiff.commits then newDiff.commits = []
   commits: union(oldDiff.commits, newDiff.commits),
   trees: union(oldDiff.trees, newDiff.trees),
-  data: union(oldDiff.data, newDiff.data)
+  values: union(oldDiff.values, newDiff.values)
 
 findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore) ->
-  if contains commonCommitHashs, toCommitHash then return commits: [], trees: [], data: []
-  diff = commits: [toCommitHash], trees: [], data: []
+  if contains commonCommitHashs, toCommitHash then return commits: [], trees: [], values: []
+  diff = commits: [toCommitHash], trees: [], values: []
   toCommit = commitStore.read toCommitHash
   ancestorDiffs = for ancestor in toCommit.ancestors
     findDeltaDiff(commitStore.read(ancestor).tree, toCommit.tree, treeStore)
@@ -166,7 +162,7 @@ findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore) ->
   else
     diff = mergeDiffs diff,
       trees: intersection(pluck(ancestorDiffs, 'trees')...),
-      data: intersection(pluck(ancestorDiffs, 'data')...)
+      values: intersection(pluck(ancestorDiffs, 'values')...)
     reduceFun = (diff, ancestor) ->
       newCommonTreeHashs = union(findCommonCommit ancestor, each, treeStore for each in commonCommitHashs)
       mergeDiffs diff, findDelta(newCommonTreeHashs, ancestor, treeStore, commitStore)
@@ -204,7 +200,7 @@ class Repository
   branch: (treeHash) -> new Branch this, treeHash
   commit: (oldCommitHash, data) ->
     oldTree = if oldCommitHash then @_commitStore.read(oldCommitHash).tree
-    parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
+    parsedData = (path: path.split('/').reverse(), value: value for path, value of data)
     newTree = commit oldTree, parsedData, @_treeStore
     if newTree == oldTree then return oldCommitHash
     else
@@ -228,10 +224,10 @@ class Repository
     [tree1, tree2] = for each in [commit1, commit2]
       if each then @_commitStore.read(each).tree
     diff = findDiffWithPaths tree1, tree2, @_treeStore
-    translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
-    {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}
+    translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
+    {trees: translatePaths(diff.trees), values: translatePaths(diff.values)}
   deltaHashs: ({from, to}) ->
-    diff = commits: [], trees: [], data: []
+    diff = commits: [], trees: [], values: []
     for toEach in to
       commonCommits = (@commonCommit fromEach, toEach for fromEach in from)
       diff = mergeDiffs diff, findDelta(commonCommits, toEach, @_treeStore, @_commitStore)
@@ -239,7 +235,7 @@ class Repository
   deltaData: (delta) ->
     commits: (@commitStore.read each for each in delta.commits)
     trees: (@treeStore.read each for each in delta.trees)
-    data: delta.data
+    values: delta.values
   merge: (commit1, commit2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
