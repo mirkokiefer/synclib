@@ -179,8 +179,7 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
     [commonTree, tree1, tree2] = for each in [commonTreeHash, tree1Hash, tree2Hash]
       if each then treeStore.read each
       else new Tree()
-    ancestors = (each for each in [tree1Hash, tree2Hash] when each)
-    newTree = new Tree ancestors: ancestors
+    newTree = new Tree
     mergeData = ->
       for key in union(keys(tree2.childData), keys(tree1.childData))
         commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
@@ -241,13 +240,16 @@ class Repository
     commits: (@commitStore.read each for each in delta.commits)
     trees: (@treeStore.read each for each in delta.trees)
     data: delta.data
-  merge: (tree1, tree2, strategy) ->
+  merge: (commit1, commit2, strategy) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
-    commonTree = @commonCommit tree1, tree2
-    if tree1 == commonTree then tree2
-    else if tree2 == commonTree then tree1
+    commonCommit = @commonCommit commit1, commit2
+    if commit1 == commonTree then commit2
+    else if commit2 == commonCommit then commit1
     else
-      mergingCommit commonTree, tree1, tree2, strategy, @_treeStore
+      [commonTree, tree1, tree2] = for each in [commonCommit, commit1, commit2]
+        if each then @_commitStore.read(each).tree
+      newTree = mergingCommit commonTree, tree1, tree2, strategy, @_treeStore
+      @_commitStore.write new Commit ancestors: [commit1, commit2], tree: newTree
 
 module.exports = Repository

@@ -329,62 +329,138 @@
         return assert.ok(diff.commits[0].length > 40);
       });
     });
-    /*describe 'merge', () ->
-      assertMerge = (branch, expectedData, expectedHeads) ->
-        head = repo._commitStore.read branch.head
-        assertArray head.ancestors, expectedHeads
-        assertPathData branch.allPaths(), expectedData
-      it 'should merge branchB into branchA', () ->
+    describe('merge', function() {
+      var assertMerge;
+      assertMerge = function(branch, expectedData, expectedHeads) {
+        var head;
+        head = repo._commitStore.read(branch.head);
+        assertArray(head.ancestors, expectedHeads);
+        return assertPathData(branch.allPaths(), expectedData);
+      };
+      it('should merge branchB into branchA', function() {
+        var expectedData, oldHead, strategy;
         expectedData = [
-          { path: 'b/f/a', value: 'hashB 3.2' },
-          { path: 'b/f/g', value: 'hashA 1.3' },
-          { path: 'b/c', value: 'hashB 3.0' },
-          { path: 'b/d', value: 'hashA 0.2' },
-          { path: 'b/e', value: 'hashB 3.1' },
-          { path: 'b/h', value: 'hashB 0.0' },
-          { path: 'c/a', value: 'hashB 1.0' },
-          { path: 'a', value: 'hashB 2.0' },
-          { path: 'u', value: 'hashB 2.1' }
-        ]
-        oldHead = testBranchA.head
-        strategy = (path, value1Hash, value2Hash) -> value2Hash
-        testBranchA.merge ref: testBranchB, strategy: strategy
-        assertMerge testBranchA, expectedData, [oldHead, testBranchB.head]
-      it 'should merge branchA into branchB', () ->
+          {
+            path: 'b/f/a',
+            value: 'hashB 3.2'
+          }, {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashB 3.0'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashB 3.1'
+          }, {
+            path: 'b/h',
+            value: 'hashB 0.0'
+          }, {
+            path: 'c/a',
+            value: 'hashB 1.0'
+          }, {
+            path: 'a',
+            value: 'hashB 2.0'
+          }, {
+            path: 'u',
+            value: 'hashB 2.1'
+          }
+        ];
+        oldHead = testBranchA.head;
+        strategy = function(path, value1Hash, value2Hash) {
+          return value2Hash;
+        };
+        testBranchA.merge({
+          ref: testBranchB,
+          strategy: strategy
+        });
+        return assertMerge(testBranchA, expectedData, [oldHead, testBranchB.head]);
+      });
+      it('should merge branchA into branchB', function() {
+        var expectedData, oldHead;
         expectedData = [
-          { path: 'b/f/a', value: 'hashB 3.2' },
-          { path: 'b/f/g', value: 'hashA 1.3' },
-          { path: 'b/c', value: 'hashB 3.0' },
-          { path: 'b/d', value: 'hashA 0.2' },
-          { path: 'b/e', value: 'hashB 3.1' },
-          { path: 'b/h', value: 'hashB 0.0' },
-          { path: 'c/a', value: 'hashB 1.0' },
-          { path: 'a', value: 'hashB 2.0' },
-          { path: 'u', value: 'hashB 2.1' }
-        ]
-        oldHead = testBranchB.head
-        testBranchB.merge ref: dataAHashes[2]
-        assertMerge testBranchB, expectedData, [oldHead, dataAHashes[2]]
-        assert.equal testBranchB.head, testBranchA.head
-      it 'should merge branchA into branchC (they do not have a common commit)', () ->
+          {
+            path: 'b/f/a',
+            value: 'hashB 3.2'
+          }, {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashB 3.0'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashB 3.1'
+          }, {
+            path: 'b/h',
+            value: 'hashB 0.0'
+          }, {
+            path: 'c/a',
+            value: 'hashB 1.0'
+          }, {
+            path: 'a',
+            value: 'hashB 2.0'
+          }, {
+            path: 'u',
+            value: 'hashB 2.1'
+          }
+        ];
+        oldHead = testBranchB.head;
+        testBranchB.merge({
+          ref: dataAHashes[2]
+        });
+        assertMerge(testBranchB, expectedData, [oldHead, dataAHashes[2]]);
+        return assert.equal(testBranchB.head, testBranchA.head);
+      });
+      return it('should merge branchA into branchC (they do not have a common commit)', function() {
+        var expectedData, oldHeadC;
         expectedData = [
-          { path: 'b/f/g', value: 'hashA 1.3' },
-          { path: 'b/c', value: 'hashA 1.1' },
-          { path: 'b/d', value: 'hashA 0.2' },
-          { path: 'b/e', value: 'hashA 2.0' },
-          { path: 'c/a', value: 'hashC 0.1' },
-          { path: 'a', value: 'hashC 1.0' }
-        ]
-        oldHeadC = testBranchC.head
-        testBranchC.merge ref: dataAHashes[2]
-        assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]
-    describe 'commit deletes', ->
-      it 'should delete data', ->
-        data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-        testBranchB.commit data
-        testData testBranchB, data
-    */
-
+          {
+            path: 'b/f/g',
+            value: 'hashA 1.3'
+          }, {
+            path: 'b/c',
+            value: 'hashA 1.1'
+          }, {
+            path: 'b/d',
+            value: 'hashA 0.2'
+          }, {
+            path: 'b/e',
+            value: 'hashA 2.0'
+          }, {
+            path: 'c/a',
+            value: 'hashC 0.1'
+          }, {
+            path: 'a',
+            value: 'hashC 1.0'
+          }
+        ];
+        oldHeadC = testBranchC.head;
+        testBranchC.merge({
+          ref: dataAHashes[2]
+        });
+        return assertMerge(testBranchC, expectedData, [oldHeadC, dataAHashes[2]]);
+      });
+    });
+    describe('commit deletes', function() {
+      return it('should delete data', function() {
+        var data;
+        data = {
+          'b/c': null,
+          'b/f/a': null,
+          'b/f/g': null,
+          'a': 1
+        };
+        testBranchB.commit(data);
+        return testData(testBranchB, data);
+      });
+    });
     describe('treeAtPath', function() {
       it('should read the root tree', function() {
         var tree;

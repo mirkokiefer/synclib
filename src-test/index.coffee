@@ -175,7 +175,7 @@ describe 'branch', () ->
       assert.equal diff.trees.length, 5
       assert.ok diff.trees[0].length > 40
       assert.ok diff.commits[0].length > 40
-  ###describe 'merge', () ->
+  describe 'merge', () ->
     assertMerge = (branch, expectedData, expectedHeads) ->
       head = repo._commitStore.read branch.head
       assertArray head.ancestors, expectedHeads
@@ -228,7 +228,7 @@ describe 'branch', () ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
       testBranchB.commit data
-      testData testBranchB, data###
+      testData testBranchB, data
   describe 'treeAtPath', ->
     it 'should read the root tree', ->
       tree = testBranchA.treeAtPath ''
