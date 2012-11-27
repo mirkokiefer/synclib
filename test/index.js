@@ -265,7 +265,7 @@
         });
       });
     });
-    return describe('diff', function() {
+    describe('diff', function() {
       it('should find the diff between two commits', function(done) {
         return repo.diff(dataAHashes[0], dataAHashes[1], function(err, diff) {
           var path, value, _i, _len, _ref1, _ref2;
@@ -297,32 +297,67 @@
         });
       });
     });
-    /*describe 'deltaHashs', () ->
-      it 'should find the diff as hashes between heads in the past and the current head', () ->
-        diff = testBranchA.deltaHashs from: [dataAHashes[0]]
-        realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
-        assertArray diff.values, realDataHashs
-      it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-        diff = testBranchA.deltaHashs from: ['non-existing']
-        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-        assertArray diff.values, realDataHashs
-      it 'should work without a ref - returns the full diff', () ->
-        diff = testBranchA.deltaHashs()
-        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-        assertArray diff.values, realDataHashs
-      it 'should compute the value to a disconnected branch', ->
-        diff = testBranchA.deltaHashs to: [testBranchC]
-        realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
-        assertArray diff.values, realDataHashs
-      it 'should compute the value from a single commit to multiple commits', ->
-        diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
-        realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
-        assertArray diff.values, realDataHashs
-      it 'should compute the delta from multiple commits to a single commit', ->
-        diff = testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC]
-        realDataHashs = union values(dataD[0]), values(dataD[1])
-        assertArray diff.values, realDataHashs
-    describe 'delta', () ->
+    return describe('deltaHashs', function() {
+      it('should find the diff as hashes between heads in the past and the current head', function(done) {
+        return testBranchA.deltaHashs({
+          from: [dataAHashes[0]]
+        }, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+      it('should find the diff between a head in the past that doesnt exist and the current head', function(done) {
+        return testBranchA.deltaHashs({
+          from: ['non-existing']
+        }, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+      it('should work without a ref - returns the full diff', function(done) {
+        return testBranchA.deltaHashs({}, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+      it('should compute the value to a disconnected branch', function(done) {
+        return testBranchA.deltaHashs({
+          to: [testBranchC]
+        }, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = _.union(_.values(dataC[0]), _.values(dataC[1]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+      it('should compute the value from a single commit to multiple commits', function(done) {
+        return testBranchD.deltaHashs({
+          to: [testBranchA, testBranchB]
+        }, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = _.union(_.values(dataA[2]), _.values(dataB[3]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+      return it('should compute the delta from multiple commits to a single commit', function(done) {
+        return testBranchD.deltaHashs({
+          from: [testBranchA, testBranchB, testBranchC]
+        }, function(err, diff) {
+          var realDataHashs;
+          realDataHashs = union(values(dataD[0]), values(dataD[1]));
+          assertArray(diff.values, realDataHashs);
+          return done();
+        });
+      });
+    });
+    /*describe 'delta', () ->
       it 'should find the diff including the actual trees and commits', () ->
         diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
         assert.equal diff.trees.length, 5

@@ -20,12 +20,12 @@ class Branch extends EventEmitter
   commonCommit: (ref, cb) -> @repo.commonCommit @head, normalize(ref), cb
   commonCommitWithPaths: (ref, cb) -> @repo.commonCommitWithPaths @head, normalize(ref), cb
   diff: (ref, cb) -> @repo.diff @head, normalize(ref), cb
-  deltaHashs: ({from, to}={}) ->
+  deltaHashs: ({from, to}={}, cb) ->
     head = if @head then [@head] else []
     [from, to] = if from then [normalizeAll(from), head] else
       if to then [head, normalizeAll(to)]
       else [[], head]
-    @repo.deltaHashs from: from, to: to
+    @repo.deltaHashs from: from, to: to, cb
   merge: ({ref, strategy}) ->
     obj = this
     @head = @repo.merge @head, normalize(ref), strategy

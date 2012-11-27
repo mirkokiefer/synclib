@@ -157,32 +157,38 @@ describe 'branch', () ->
       testBranchA.diff testBranchB, (err, diff) ->
         assert.ok diff
         done()
-  ###describe 'deltaHashs', () ->
-    it 'should find the diff as hashes between heads in the past and the current head', () ->
-      diff = testBranchA.deltaHashs from: [dataAHashes[0]]
-      realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
-      assertArray diff.values, realDataHashs
-    it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.deltaHashs from: ['non-existing']
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      assertArray diff.values, realDataHashs
-    it 'should work without a ref - returns the full diff', () ->
-      diff = testBranchA.deltaHashs()
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      assertArray diff.values, realDataHashs
-    it 'should compute the value to a disconnected branch', ->
-      diff = testBranchA.deltaHashs to: [testBranchC]
-      realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
-      assertArray diff.values, realDataHashs
-    it 'should compute the value from a single commit to multiple commits', ->
-      diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
-      realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
-      assertArray diff.values, realDataHashs
-    it 'should compute the delta from multiple commits to a single commit', ->
-      diff = testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC]
-      realDataHashs = union values(dataD[0]), values(dataD[1])
-      assertArray diff.values, realDataHashs
-  describe 'delta', () ->
+  describe 'deltaHashs', () ->
+    it 'should find the diff as hashes between heads in the past and the current head', (done) ->
+      testBranchA.deltaHashs from: [dataAHashes[0]], (err, diff) ->
+        realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should find the diff between a head in the past that doesnt exist and the current head', (done) ->
+      testBranchA.deltaHashs from: ['non-existing'], (err, diff) ->
+        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should work without a ref - returns the full diff', (done) ->
+      testBranchA.deltaHashs {}, (err, diff) ->
+        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the value to a disconnected branch', (done) ->
+      testBranchA.deltaHashs to: [testBranchC], (err, diff) ->
+        realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the value from a single commit to multiple commits', (done) ->
+      testBranchD.deltaHashs to: [testBranchA, testBranchB], (err, diff) ->
+        realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the delta from multiple commits to a single commit', (done) ->
+      testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC], (err, diff) ->
+        realDataHashs = union values(dataD[0]), values(dataD[1])
+        assertArray diff.values, realDataHashs
+        done()
+  ###describe 'delta', () ->
     it 'should find the diff including the actual trees and commits', () ->
       diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
       assert.equal diff.trees.length, 5

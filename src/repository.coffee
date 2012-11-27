@@ -142,16 +142,16 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
           values: union(diff.values, prependPath(childDiff.values))
     async.reduce union(keys(tree1.childTrees), keys(tree2.childTrees)), diff, mapChildTree, cb
 
-findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], values: []
-  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
-    if each then treeStore.read each else new Tree()
-  diff = values: [], trees: if tree2Hash then [tree2Hash] else []
-  diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
-  mapChildTree = (diff, key) ->
-    childDiff = findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore
-    trees: union(diff.trees, childDiff.trees), values: union(diff.values, childDiff.values)
-  union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
+findDeltaDiff = (tree1Hash, tree2Hash, treeStore, cb) ->
+  if tree1Hash == tree2Hash then return cb null, trees: [], values: []
+  readOrCreateNewTree = (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
+  async.map [tree1Hash, tree2Hash], readOrCreateNewTree, (err, [tree1, tree2]) ->
+    diff = values: [], trees: if tree2Hash then [tree2Hash] else []
+    diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
+    mapChildTree = (diff, key, cb) ->
+      findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore, (err, childDiff) ->
+        cb null, trees: union(diff.trees, childDiff.trees), values: union(diff.values, childDiff.values)
+    async.reduce union(keys(tree1.childTrees), keys(tree2.childTrees)), diff, mapChildTree, cb
 
 mergeDiffs = (oldDiff, newDiff) ->
   if not newDiff.commits then newDiff.commits = []
@@ -159,25 +159,31 @@ mergeDiffs = (oldDiff, newDiff) ->
   trees: union(oldDiff.trees, newDiff.trees),
   values: union(oldDiff.values, newDiff.values)
 
-findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore) ->
-  if contains commonCommitHashs, toCommitHash then return commits: [], trees: [], values: []
+findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore, cb) ->
+  if contains commonCommitHashs, toCommitHash then return cb null, commits: [], trees: [], values: []
   diff = commits: [toCommitHash], trees: [], values: []
-  toCommit = commitStore.read toCommitHash
-  ancestorDiffs = for ancestor in toCommit.ancestors
-    findDeltaDiff(commitStore.read(ancestor).tree, toCommit.tree, treeStore)
-  if toCommit.ancestors.length == 1
-    diff = mergeDiffs diff, ancestorDiffs[0]
-    mergeDiffs diff, findDelta(commonCommitHashs, toCommit.ancestors[0], treeStore, commitStore)
-  else if toCommit.ancestors.length == 0
-    mergeDiffs diff, findDeltaDiff(null, toCommit.tree, treeStore)
-  else
-    diff = mergeDiffs diff,
-      trees: intersection(pluck(ancestorDiffs, 'trees')...),
-      values: intersection(pluck(ancestorDiffs, 'values')...)
-    reduceFun = (diff, ancestor) ->
-      newCommonTreeHashs = union(findCommonCommit ancestor, each, treeStore for each in commonCommitHashs)
-      mergeDiffs diff, findDelta(newCommonTreeHashs, ancestor, treeStore, commitStore)
-    toCommit.ancestors.reduce reduceFun, diff
+  commitStore.read toCommitHash, (err, toCommit) ->
+    mapAncestorDiffs = (ancestor, cb) ->
+      commitStore.read ancestor, (err, {tree}) ->
+        findDeltaDiff tree, toCommit.tree, treeStore, cb
+    async.map toCommit.ancestors, mapAncestorDiffs, (err, ancestorDiffs) ->
+      if toCommit.ancestors.length == 1
+        diff = mergeDiffs diff, ancestorDiffs[0]
+        findDelta commonCommitHashs, toCommit.ancestors[0], treeStore, commitStore, (err, ancestorDelta) ->
+          cb null, mergeDiffs diff, ancestorDelta
+      else if toCommit.ancestors.length == 0
+        findDeltaDiff null, toCommit.tree, treeStore, (err, deltaDiff) ->
+          cb null, mergeDiffs diff, deltaDiff
+      else
+        diff = mergeDiffs diff,
+          trees: intersection(pluck(ancestorDiffs, 'trees')...),
+          values: intersection(pluck(ancestorDiffs, 'values')...)
+        reduceFun = (diff, ancestor, cb) ->
+          mapCommonCommit = (each, cb) -> findCommonCommit ancestor, each, treeStore, cb
+          async.map commonCommitHashs, mapCommonCommit, (err, newCommonTreeHashs) ->
+            findDelta union(newCommonTreeHashs), ancestor, treeStore, commitStore, (err, ancestorDelta) ->
+              cb null, mergeDiffs diff, ancestorDelta
+        async.reduce toCommit.ancestors, diff, reduceFun, cb
 
 mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
@@ -244,12 +250,15 @@ class Repository
       findDiffWithPaths tree1, tree2, obj._treeStore, (err, diff) ->
         translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
         cb null, trees: translatePaths(diff.trees), values: translatePaths(diff.values)
-  deltaHashs: ({from, to}) ->
+  deltaHashs: ({from, to}, cb) ->
+    obj = this
     diff = commits: [], trees: [], values: []
-    for toEach in to
-      commonCommits = (@commonCommit fromEach, toEach for fromEach in from)
-      diff = mergeDiffs diff, findDelta(commonCommits, toEach, @_treeStore, @_commitStore)
-    diff
+    deltaForEach = (diff, toEach, cb) ->
+      async.map from, ((fromEach, cb) -> obj.commonCommit fromEach, toEach, cb), (err, commonCommits) ->
+        console.log commonCommits
+        findDelta commonCommits, toEach, obj._treeStore, obj._commitStore, (err, newDelta) ->
+          cb null, mergeDiffs diff, newDelta
+    async.reduce to, diff, deltaForEach, cb
   deltaData: (delta) ->
     commits: (@commitStore.read each for each in delta.commits)
     trees: (@treeStore.read each for each in delta.trees)
