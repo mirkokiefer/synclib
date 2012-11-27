@@ -112,31 +112,35 @@ describe 'branch', () ->
       async.forEach [commitB, commitC, commitD], commitData, ->
         testCommitAncestors testBranchB.head, dataBHashes
         done()
-  ###describe 'commonCommit', () ->
+  describe 'commonCommit', () ->
     # should maybe output the path as well
-    it 'should find a common commit', ->
-      res1 = testBranchA.commonCommit testBranchB
-      assert.equal res1, dataAHashes[1]
-      res2 = testBranchA.commonCommit testBranchD
-      assert.equal res2, dataAHashes[1]
-      res3 = testBranchA.commonCommit dataAHashes[0]
-      assert.equal res3, dataAHashes[0]
-      res4 = repo.commonCommit dataAHashes[2], dataAHashes[0]
-      assert.equal res4, dataAHashes[0]
-      res5 = repo.commonCommit dataAHashes[0], dataAHashes[2]
-      assert.equal res5, dataAHashes[0]
-    it 'should find a common commit with paths', ->
-      res1 = testBranchA.commonCommitWithPaths testBranchB
-      expectedCommit1Path = [dataAHashes[1], dataAHashes[2]]
-      expectedCommit2Path = dataBHashes.concat dataAHashes[1]
-      assertArray res1.commit1Path, expectedCommit1Path
-      assertArray res1.commit2Path, expectedCommit2Path
-      res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
-      assert.equal res2.commit2Path.length, 1
-    it 'should not find a common commit', ->
-      res = testBranchA.commonCommit testBranchC
-      assert.equal res, undefined
-  describe 'diff', () ->
+    it 'should find a common commit', (done) ->
+      tests = [
+        (cb) -> testBranchA.commonCommit testBranchB, cb
+        (cb) -> testBranchA.commonCommit testBranchD, cb
+        (cb) -> testBranchA.commonCommit dataAHashes[0], cb
+        (cb) -> repo.commonCommit dataAHashes[2], dataAHashes[0], cb
+        (cb) -> repo.commonCommit dataAHashes[0], dataAHashes[2], cb
+      ]
+      async.series tests, (err, results) ->
+        expectedResults = [dataAHashes[1], dataAHashes[1], dataAHashes[0], dataAHashes[0], dataAHashes[0]]
+        for each, i in expectedResults
+          assert.equal results[i], each
+        done()
+    it 'should find a common commit with paths', (done) ->
+      testBranchA.commonCommitWithPaths testBranchB, (err, res1) ->
+        expectedCommit1Path = [dataAHashes[1], dataAHashes[2]]
+        expectedCommit2Path = dataBHashes.concat dataAHashes[1]
+        assertArray res1.commit1Path, expectedCommit1Path
+        assertArray res1.commit2Path, expectedCommit2Path
+        testBranchA.commonCommitWithPaths dataAHashes[0], (err, res2) ->
+          assert.equal res2.commit2Path.length, 1
+          done()
+    it 'should not find a common commit', (done) ->
+      testBranchA.commonCommit testBranchC, (err, res) ->
+        assert.equal res, undefined
+        done()
+  ###describe 'diff', () ->
     it 'should find the diff between two commits', ->
       diff = repo.diff dataAHashes[0], dataAHashes[1]
       assert.equal diff.values.length, _.keys(dataA[1]).length
