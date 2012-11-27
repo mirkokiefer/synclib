@@ -219,7 +219,7 @@
         });
       });
     });
-    return describe('commonCommit', function() {
+    describe('commonCommit', function() {
       it('should find a common commit', function(done) {
         var tests;
         tests = [
@@ -265,21 +265,39 @@
         });
       });
     });
-    /*describe 'diff', () ->
-      it 'should find the diff between two commits', ->
-        diff = repo.diff dataAHashes[0], dataAHashes[1]
-        assert.equal diff.values.length, _.keys(dataA[1]).length
-        for {path, value} in diff.values
-          assert.equal value, dataA[1][path]
-        assert.equal diff.trees.length, 3
-      it 'should find the diff between null and a commit', ->
-        diff = repo.diff null, dataAHashes[0]
-        for {path, value} in diff.values
-          assert.equal value, dataA[0][path]
-      it 'should find the diff between the current head and another commit', ->
-        diff = testBranchA.diff testBranchB
-        assert.ok diff
-    describe 'deltaHashs', () ->
+    return describe('diff', function() {
+      it('should find the diff between two commits', function(done) {
+        return repo.diff(dataAHashes[0], dataAHashes[1], function(err, diff) {
+          var path, value, _i, _len, _ref1, _ref2;
+          assert.equal(diff.values.length, _.keys(dataA[1]).length);
+          _ref1 = diff.values;
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            _ref2 = _ref1[_i], path = _ref2.path, value = _ref2.value;
+            assert.equal(value, dataA[1][path]);
+          }
+          assert.equal(diff.trees.length, 3);
+          return done();
+        });
+      });
+      it('should find the diff between null and a commit', function(done) {
+        return repo.diff(null, dataAHashes[0], function(err, diff) {
+          var path, value, _i, _len, _ref1, _ref2;
+          _ref1 = diff.values;
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            _ref2 = _ref1[_i], path = _ref2.path, value = _ref2.value;
+            assert.equal(value, dataA[0][path]);
+          }
+          return done();
+        });
+      });
+      return it('should find the diff between the current head and another commit', function(done) {
+        return testBranchA.diff(testBranchB, function(err, diff) {
+          assert.ok(diff);
+          return done();
+        });
+      });
+    });
+    /*describe 'deltaHashs', () ->
       it 'should find the diff as hashes between heads in the past and the current head', () ->
         diff = testBranchA.deltaHashs from: [dataAHashes[0]]
         realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))

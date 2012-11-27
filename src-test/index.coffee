@@ -140,21 +140,24 @@ describe 'branch', () ->
       testBranchA.commonCommit testBranchC, (err, res) ->
         assert.equal res, undefined
         done()
-  ###describe 'diff', () ->
-    it 'should find the diff between two commits', ->
-      diff = repo.diff dataAHashes[0], dataAHashes[1]
-      assert.equal diff.values.length, _.keys(dataA[1]).length
-      for {path, value} in diff.values
-        assert.equal value, dataA[1][path]
-      assert.equal diff.trees.length, 3
-    it 'should find the diff between null and a commit', ->
-      diff = repo.diff null, dataAHashes[0]
-      for {path, value} in diff.values
-        assert.equal value, dataA[0][path]
-    it 'should find the diff between the current head and another commit', ->
-      diff = testBranchA.diff testBranchB
-      assert.ok diff
-  describe 'deltaHashs', () ->
+  describe 'diff', () ->
+    it 'should find the diff between two commits', (done) ->
+      repo.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
+        assert.equal diff.values.length, _.keys(dataA[1]).length
+        for {path, value} in diff.values
+          assert.equal value, dataA[1][path]
+        assert.equal diff.trees.length, 3
+        done()
+    it 'should find the diff between null and a commit', (done) ->
+      repo.diff null, dataAHashes[0], (err, diff) ->
+        for {path, value} in diff.values
+          assert.equal value, dataA[0][path]
+        done()
+    it 'should find the diff between the current head and another commit', (done) ->
+      testBranchA.diff testBranchB, (err, diff) ->
+        assert.ok diff
+        done()
+  ###describe 'deltaHashs', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
       diff = testBranchA.deltaHashs from: [dataAHashes[0]]
       realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))

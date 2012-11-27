@@ -126,20 +126,21 @@ findCommonCommit = (commit1, commit2, commitStore, cb) ->
   findCommonCommitWithPaths commit1, commit2, commitStore, (err, res) ->
     if res then cb null, res.commit else cb null
 
-findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], values: []
-  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
-    if each then treeStore.read each else new Tree()
-  diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
-  updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
-  deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
-  diff.values = union updatedData, deletedData
-  mapChildTree = (diff, key) ->
-    childDiff = findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore
-    prependPath = (pathHashs) -> {path: [key, path...], value: value} for {path, value} in pathHashs
-    trees: union(diff.trees, prependPath(childDiff.trees)),
-    values: union(diff.values, prependPath(childDiff.values))
-  union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
+findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
+  if tree1Hash == tree2Hash then return cb null, trees: [], values: []
+  readOrCreateNewTree = (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
+  async.map [tree1Hash, tree2Hash], readOrCreateNewTree, (err, [tree1, tree2]) ->
+    diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
+    updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
+    deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
+    diff.values = union updatedData, deletedData
+    mapChildTree = (diff, key, cb) ->
+      findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore, (err, childDiff) ->
+        prependPath = (pathHashs) -> {path: [key, path...], value: value} for {path, value} in pathHashs
+        cb null,
+          trees: union(diff.trees, prependPath(childDiff.trees)),
+          values: union(diff.values, prependPath(childDiff.values))
+    async.reduce union(keys(tree1.childTrees), keys(tree2.childTrees)), diff, mapChildTree, cb
 
 findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
   if tree1Hash == tree2Hash then return trees: [], values: []
@@ -233,12 +234,16 @@ class Repository
     path:path.join('/'), value:value for {path, value} in allPaths tree, @_treeStore
   commonCommit: (commit1, commit2, cb) -> findCommonCommit commit1, commit2, @_commitStore, cb
   commonCommitWithPaths: (commit1, commit2, cb) -> findCommonCommitWithPaths commit1, commit2, @_commitStore, cb
-  diff: (commit1, commit2) ->
-    [tree1, tree2] = for each in [commit1, commit2]
-      if each then @_commitStore.read(each).tree
-    diff = findDiffWithPaths tree1, tree2, @_treeStore
-    translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
-    {trees: translatePaths(diff.trees), values: translatePaths(diff.values)}
+  diff: (commit1, commit2, cb) ->
+    obj = this
+    readCommitTree = (each, cb) ->
+      if each
+        obj._commitStore.read each, (err, commitObj) -> cb null, commitObj.tree
+      else cb null
+    async.map [commit1, commit2], readCommitTree, (err, [tree1, tree2]) ->
+      findDiffWithPaths tree1, tree2, obj._treeStore, (err, diff) ->
+        translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
+        cb null, trees: translatePaths(diff.trees), values: translatePaths(diff.values)
   deltaHashs: ({from, to}) ->
     diff = commits: [], trees: [], values: []
     for toEach in to
