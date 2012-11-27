@@ -4,15 +4,34 @@ _ = require 'underscore'
 {union, values, keys, intersection, clone, contains, pluck} = _
 {objectDiff, objectDiffObject, addKeyPrefix, Queue} = require './utils'
 Branch = require './branch'
-TreeStore = require './tree-store'
+Store = require './store'
 contentAddressable = require('content-addressable').memory
 keyValueStore = require('pluggable-store').memory
 
 class Tree
-  constructor: ({ancestors, childTrees, childData}={}) ->
-    @ancestors = if ancestors then ancestors else []
+  constructor: ({childTrees, childData}={}) ->
     @childTrees = if childTrees then childTrees else {}
     @childData = if childData then childData else {}
+
+Tree.serialize = (obj) ->
+  sort = (arr) -> arr.sort (a, b) -> a[0] > b[0]
+  childTrees = sort(_.pairs obj.childTrees)
+  childData = sort(_.pairs obj.childData)
+  JSON.stringify [childTrees, childData]
+Tree.deserialize = (string) ->
+  [childTrees, childData] = JSON.parse(string)
+  new Tree childTrees: _.object(childTrees), childData: _.object(childData)
+
+class Commit
+  constructor: ({ancestors, @tree, info}={}) ->
+    @ancestors = if ancestors then ancestors else []
+    @info = if info then info else []
+
+Commit.serialize = (obj) ->
+  JSON.stringify [obj.ancestors.sort(), obj.tree, obj.info]
+Commit.deserialize = (string) ->
+  [ancestors, tree, info] = JSON.parse string
+  new Commit ancestors: ancestors, tree: tree, info: info
 
 groupCurrentAndChildTreeData = (data) ->
   currentTreeData = {}
@@ -42,9 +61,7 @@ commit = (treeHash, data, treeStore) ->
       if newChildTree then currentTree.childTrees[key] = newChildTree
       else delete currentTree.childTrees[key]
   if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
-    if changedTree
-      if treeHash then currentTree.ancestors = [treeHash]
-      treeStore.write currentTree
+    if changedTree then treeStore.write currentTree
     else treeHash
 
 readTreeAtPath = (treeHash, treeStore, path) ->
@@ -173,18 +190,28 @@ mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
     treeStore.write newTree
 
 class Repository
-  constructor: ({@treeStore}={}) ->
+  constructor: ({@treeStore, @commitStore}={}) ->
     if not @treeStore then @treeStore = contentAddressable()
-    @_treeStore = new TreeStore @treeStore
+    if not @commitStore then @commitStore = contentAddressable()
+    @_treeStore = new Store @treeStore, Tree
+    @_commitStore = new Store @commitStore, Commit
   branch: (treeHash) -> new Branch this, treeHash
-  commit: (oldTree, data) ->
+  commit: (oldCommitHash, data) ->
+    oldTree = if oldCommitHash then @_commitStore.read(oldCommitHash).tree
     parsedData = (path: path.split('/').reverse(), hash: hash for path, hash of data)
-    commit oldTree, parsedData, @_treeStore
-  treeAtPath: (tree, path) ->
+    newTree = commit oldTree, parsedData, @_treeStore
+    if newTree == oldTree then return oldCommitHash
+    else
+      ancestors = if oldCommitHash then [oldCommitHash] else []
+      newCommit = new Commit ancestors: ancestors, tree: newTree
+      @_commitStore.write newCommit
+  treeAtPath: (commitHash, path) ->
     path = if path == '' then [] else path.split('/').reverse()
+    {tree} = @_commitStore.read commitHash
     readTreeAtPath tree, @_treeStore, path    
-  dataAtPath: (tree, path) ->
+  dataAtPath: (commitHash, path) ->
     path = path.split('/').reverse()
+    {tree} = @_commitStore.read commitHash
     read tree, @_treeStore, path
   allPaths: (treeHash) ->
     path:path.join('/'), value:value for {path, value} in allPaths treeHash, @_treeStore

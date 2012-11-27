@@ -21,12 +21,12 @@ testData = (branch, data) ->
   for path, value of data
     assert.equal branch.dataAtPath(path), value
 
-testTreeAncestors = (treeHash, hashs) ->
+testCommitAncestors = (commitHash, hashs) ->
   [first, rest...] = hashs
-  assert.equal treeHash, first
+  assert.equal commitHash, first
   if rest.length > 0
-    tree = repo._treeStore.read treeHash
-    testTreeAncestors tree.ancestors[0], rest
+    {ancestors} = repo._commitStore.read commitHash
+    testCommitAncestors ancestors[0], rest
 
 dataA = [
   {'a': "hashA 0.0", 'b/c': "hashA 0.1", 'b/d': "hashA 0.2"}
@@ -48,15 +48,15 @@ dataD = [
   {'b/f/b': 'hashD 1.0'}
 ]
 dataAHashes = [
-  'e90eade66b9fc267016eff49d07bc5d8a64f0dda'
-  '3f0f72434191cde81c71d26dc7db96bd03435feb'
-  'cca2949ddf3046f4956292e8623c731ea8c217d5'
+  'b2ef9fc4cb736db036b5dc098f1054546bcaf1be'
+  '5bc500f2e12c1cf10719925cf1848413965603ff'
+  '7693e2f18011f0a995e26880f17230fd36f04c5d'
 ]
 dataBHashes = [
-  'c6c3c788efd7d615887776c306290c45c29772cf'
-  'befd62c41818e1ea39573507fd1dc1cd47f01af3'
-  '2fced862788cb4272f0d1d51869dba4d3552c630'
-  '872a39296a6358c4d71c5de01aa0dc4c257718bf'
+  'fca94cfa923725e3c6318bb5eef14dffd9c38091'
+  'ae1287e2835cfea8fca7a880dcfe09ecf4dfb428'
+  'c3015798e734dc9bbc3e8fc58e677e2eacc1a377'
+  '68d1f53596baa4bdc69208a06538e88d9612e77a'
 ]
 commitB = {data: dataB, ref: dataAHashes[1], branch: testBranchB}
 commitC = {data: dataC, branch: testBranchC}
@@ -87,8 +87,9 @@ describe 'branch', () ->
       d = testBranchA.dataAtPath 'b/d'
       assert.equal d, dataA[0]['b/d']
     it 'should not create a new commit', ->
+      oldHead = testBranchA.head
       head = testBranchA.commit dataA[1]
-      assert.equal head, dataAHashes[1]
+      assert.equal head, oldHead
     it 'should read from a previous commit', () ->
       head1 = testBranchA.head
       head2 = testBranchA.commit dataA[2]
@@ -104,8 +105,8 @@ describe 'branch', () ->
         branch.head = ref
         branch.commit each for each in data
       commitData each for each in [commitB, commitC, commitD]
-      testTreeAncestors testBranchB.head, dataBHashes
-  describe 'commonCommit', () ->
+      testCommitAncestors testBranchB.head, dataBHashes
+  ###describe 'commonCommit', () ->
     # should maybe output the path as well
     it 'should find a common commit', ->
       res1 = testBranchA.commonCommit testBranchB
