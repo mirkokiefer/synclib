@@ -216,7 +216,9 @@ class Repository
     path:path.join('/'), value:value for {path, value} in allPaths treeHash, @_treeStore
   commonCommit: (commit1, commit2) -> findCommonCommit commit1, commit2, @_commitStore
   commonCommitWithPaths: (commit1, commit2) -> findCommonCommitWithPaths commit1, commit2, @_commitStore
-  diff: (tree1, tree2) ->
+  diff: (commit1, commit2) ->
+    [tree1, tree2] = for each in [commit1, commit2]
+      if each then @_commitStore.read(each).tree
     diff = findDiffWithPaths tree1, tree2, @_treeStore
     translatePaths = (array) -> {path: path.join('/'), hash} for {path, hash} in array
     {trees: translatePaths(diff.trees), data: translatePaths(diff.data)}

@@ -211,7 +211,7 @@
         return testCommitAncestors(testBranchB.head, dataBHashes);
       });
     });
-    return describe('commonCommit', function() {
+    describe('commonCommit', function() {
       it('should find a common commit', function() {
         var res1, res2, res3, res4, res5;
         res1 = testBranchA.commonCommit(testBranchB);
@@ -241,21 +241,36 @@
         return assert.equal(res, void 0);
       });
     });
-    /*describe 'diff', () ->
-      it 'should find the diff between two trees', ->
-        diff = repo.diff dataAHashes[0], dataAHashes[1]
-        assert.equal diff.data.length, _.keys(dataA[1]).length
-        for {path, hash} in diff.data
-          assert.equal hash, dataA[1][path]
-        assert.equal diff.trees.length, 3
-      it 'should find the diff between null and a tree', ->
-        diff = repo.diff null, dataAHashes[0]
-        for {path, hash} in diff.data
-          assert.equal hash, dataA[0][path]
-      it 'should find the diff between the current head and another tree', ->
-        diff = testBranchA.diff testBranchB
-        assert.ok diff
-    describe 'deltaHashs', () ->
+    return describe('diff', function() {
+      it('should find the diff between two commits', function() {
+        var diff, hash, path, _i, _len, _ref1, _ref2;
+        diff = repo.diff(dataAHashes[0], dataAHashes[1]);
+        assert.equal(diff.data.length, _.keys(dataA[1]).length);
+        _ref1 = diff.data;
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          _ref2 = _ref1[_i], path = _ref2.path, hash = _ref2.hash;
+          assert.equal(hash, dataA[1][path]);
+        }
+        return assert.equal(diff.trees.length, 3);
+      });
+      it('should find the diff between null and a commit', function() {
+        var diff, hash, path, _i, _len, _ref1, _ref2, _results;
+        diff = repo.diff(null, dataAHashes[0]);
+        _ref1 = diff.data;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          _ref2 = _ref1[_i], path = _ref2.path, hash = _ref2.hash;
+          _results.push(assert.equal(hash, dataA[0][path]));
+        }
+        return _results;
+      });
+      return it('should find the diff between the current head and another commit', function() {
+        var diff;
+        diff = testBranchA.diff(testBranchB);
+        return assert.ok(diff);
+      });
+    });
+    /*describe 'deltaHashs', () ->
       it 'should find the diff as hashes between heads in the past and the current head', () ->
         diff = testBranchA.deltaHashs from: [dataAHashes[0]]
         realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))

@@ -130,21 +130,21 @@ describe 'branch', () ->
     it 'should not find a common commit', ->
       res = testBranchA.commonCommit testBranchC
       assert.equal res, undefined
-  ###describe 'diff', () ->
-    it 'should find the diff between two trees', ->
+  describe 'diff', () ->
+    it 'should find the diff between two commits', ->
       diff = repo.diff dataAHashes[0], dataAHashes[1]
       assert.equal diff.data.length, _.keys(dataA[1]).length
       for {path, hash} in diff.data
         assert.equal hash, dataA[1][path]
       assert.equal diff.trees.length, 3
-    it 'should find the diff between null and a tree', ->
+    it 'should find the diff between null and a commit', ->
       diff = repo.diff null, dataAHashes[0]
       for {path, hash} in diff.data
         assert.equal hash, dataA[0][path]
-    it 'should find the diff between the current head and another tree', ->
+    it 'should find the diff between the current head and another commit', ->
       diff = testBranchA.diff testBranchB
       assert.ok diff
-  describe 'deltaHashs', () ->
+  ###describe 'deltaHashs', () ->
     it 'should find the diff as hashes between heads in the past and the current head', () ->
       diff = testBranchA.deltaHashs from: [dataAHashes[0]]
       realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
