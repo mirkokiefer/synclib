@@ -240,7 +240,7 @@ class Repository
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
     commonCommit = @commonCommit commit1, commit2
-    if commit1 == commonTree then commit2
+    if commit1 == commonCommit then commit2
     else if commit2 == commonCommit then commit1
     else
       [commonTree, tree1, tree2] = for each in [commonCommit, commit1, commit2]
