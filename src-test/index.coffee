@@ -236,7 +236,7 @@ describe 'branch', () ->
     it 'should read a child tree', ->
       tree = testBranchA.treeAtPath 'b/f'
       assert.equal tree.childData.g, dataA[1]['b/f/g']
-  ###describe 'paths', ->
+  describe 'paths', ->
     it 'should return all tracked paths', ->
       testBranch = repo.branch dataAHashes[0]
       expectedPaths = keys dataA[0]

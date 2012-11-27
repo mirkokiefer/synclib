@@ -220,8 +220,9 @@ class Repository
     path = path.split('/').reverse()
     {tree} = @_commitStore.read commitHash
     read tree, @_treeStore, path
-  allPaths: (treeHash) ->
-    path:path.join('/'), value:value for {path, value} in allPaths treeHash, @_treeStore
+  allPaths: (commitHash) ->
+    {tree} = @_commitStore.read commitHash
+    path:path.join('/'), value:value for {path, value} in allPaths tree, @_treeStore
   commonCommit: (commit1, commit2) -> findCommonCommit commit1, commit2, @_commitStore
   commonCommitWithPaths: (commit1, commit2) -> findCommonCommitWithPaths commit1, commit2, @_commitStore
   diff: (commit1, commit2) ->

@@ -385,7 +385,7 @@
         testData testBranchB, data
     */
 
-    return describe('treeAtPath', function() {
+    describe('treeAtPath', function() {
       it('should read the root tree', function() {
         var tree;
         tree = testBranchA.treeAtPath('');
@@ -397,15 +397,16 @@
         return assert.equal(tree.childData.g, dataA[1]['b/f/g']);
       });
     });
-    /*describe 'paths', ->
-      it 'should return all tracked paths', ->
-        testBranch = repo.branch dataAHashes[0]
-        expectedPaths = keys dataA[0]
-        paths = pluck testBranch.allPaths(), 'path'
-        assert.equal difference(paths, expectedPaths).length, 0
-        assert.equal difference(expectedPaths, paths).length, 0
-    */
-
+    return describe('paths', function() {
+      return it('should return all tracked paths', function() {
+        var expectedPaths, paths, testBranch;
+        testBranch = repo.branch(dataAHashes[0]);
+        expectedPaths = keys(dataA[0]);
+        paths = pluck(testBranch.allPaths(), 'path');
+        assert.equal(difference(paths, expectedPaths).length, 0);
+        return assert.equal(difference(expectedPaths, paths).length, 0);
+      });
+    });
   });
 
 }).call(this);
