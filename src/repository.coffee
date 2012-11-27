@@ -255,7 +255,7 @@ class Repository
     diff = commits: [], trees: [], values: []
     deltaForEach = (diff, toEach, cb) ->
       async.map from, ((fromEach, cb) -> obj.commonCommit fromEach, toEach, cb), (err, commonCommits) ->
-        console.log commonCommits
+        commonCommits = _.without commonCommits, undefined
         findDelta commonCommits, toEach, obj._treeStore, obj._commitStore, (err, newDelta) ->
           cb null, mergeDiffs diff, newDelta
     async.reduce to, diff, deltaForEach, cb
