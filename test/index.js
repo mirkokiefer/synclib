@@ -359,15 +359,13 @@
     });
     describe('delta', function() {
       return it('should find the diff including the actual trees and commits', function(done) {
-        return testBranchA.deltaHashs({
+        return testBranchA.deltaData({
           from: [dataAHashes[0]]
-        }, function(err, diffHashs) {
-          return repo.deltaData(diffHashs, function(err, diff) {
-            assert.equal(diff.trees.length, 5);
-            assert.ok(diff.trees[0].length > 40);
-            assert.ok(diff.commits[0].length > 40);
-            return done();
-          });
+        }, function(err, diff) {
+          assert.equal(diff.trees.length, 5);
+          assert.ok(diff.trees[0].length > 40);
+          assert.ok(diff.commits[0].length > 40);
+          return done();
         });
       });
     });

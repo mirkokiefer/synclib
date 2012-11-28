@@ -5,7 +5,11 @@ EventEmitter = require('eventemitter2').EventEmitter2
 
 normalizeAll = (commitsOrBranches) -> normalize each for each in commitsOrBranches
 normalize = (commitOrBranch) -> if commitOrBranch.constructor == Branch then commitOrBranch.head else commitOrBranch
-
+normalizeDeltaParams = (from, to, head) ->
+  head = if head then [head] else []
+  if from then {from: normalizeAll(from), to: head} else
+    if to then {from: head, to: normalizeAll(to)}
+    else {from: [], to: head}
 class Branch extends EventEmitter
   constructor: (@repo, @head) ->
   commit: (data, cb) ->
@@ -21,11 +25,9 @@ class Branch extends EventEmitter
   commonCommitWithPaths: (ref, cb) -> @repo.commonCommitWithPaths @head, normalize(ref), cb
   diff: (ref, cb) -> @repo.diff @head, normalize(ref), cb
   deltaHashs: ({from, to}={}, cb) ->
-    head = if @head then [@head] else []
-    [from, to] = if from then [normalizeAll(from), head] else
-      if to then [head, normalizeAll(to)]
-      else [[], head]
-    @repo.deltaHashs from: from, to: to, cb
+    @repo.deltaHashs (normalizeDeltaParams from, to, @head), cb
+  deltaData: ({from, to}={}, cb) ->
+    @repo.deltaData (normalizeDeltaParams from, to, @head), cb
   merge: ({ref, strategy}, cb) ->
     obj = this
     @repo.merge @head, normalize(ref), strategy, (err, head) ->

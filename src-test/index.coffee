@@ -189,12 +189,11 @@ describe 'branch', () ->
         done()
   describe 'delta', () ->
     it 'should find the diff including the actual trees and commits', (done) ->
-      testBranchA.deltaHashs from: [dataAHashes[0]], (err, diffHashs) ->
-        repo.deltaData diffHashs, (err, diff) ->
-          assert.equal diff.trees.length, 5
-          assert.ok diff.trees[0].length > 40
-          assert.ok diff.commits[0].length > 40
-          done()
+      testBranchA.deltaData from: [dataAHashes[0]], (err, diff) ->
+        assert.equal diff.trees.length, 5
+        assert.ok diff.trees[0].length > 40
+        assert.ok diff.commits[0].length > 40
+        done()
   describe 'merge', () ->
     assertMerge = (branch, expectedData, expectedHeads, cb) ->
       repo._commitStore.read branch.head, (err, head) ->
