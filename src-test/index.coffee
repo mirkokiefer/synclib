@@ -82,15 +82,14 @@ describe 'branch', () ->
     it 'should commit and read objects', (done) ->
       testBranchA.commit dataA[0], (err, head) ->
         assert.equal head, dataAHashes[0]
-        testData testBranchA, dataA[0]
-        done()
+        testData testBranchA, dataA[0], done
     it 'should create a child commit', (done) ->
       testBranchA.commit dataA[1], (err, head) ->
         assert.equal head, dataAHashes[1]
-        testData testBranchA, dataA[1]
-        testBranchA.dataAtPath 'b/d', (err, d) ->
-          assert.equal d, dataA[0]['b/d']
-          done()
+        testData testBranchA, dataA[1], ->
+          testBranchA.dataAtPath 'b/d', (err, d) ->
+            assert.equal d, dataA[0]['b/d']
+            done()
     it 'should not create a new commit', (done) ->
       oldHead = testBranchA.head
       testBranchA.commit dataA[1], (err, head) ->
@@ -248,8 +247,8 @@ describe 'branch', () ->
   describe 'commit deletes', ->
     it 'should delete data', ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-      testBranchB.commit data
-      testData testBranchB, data
+      testBranchB.commit data, ->
+        testData testBranchB, data
   describe 'treeAtPath', ->
     it 'should read the root tree', ->
       tree = testBranchA.treeAtPath ''

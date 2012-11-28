@@ -167,17 +167,17 @@
       it('should commit and read objects', function(done) {
         return testBranchA.commit(dataA[0], function(err, head) {
           assert.equal(head, dataAHashes[0]);
-          testData(testBranchA, dataA[0]);
-          return done();
+          return testData(testBranchA, dataA[0], done);
         });
       });
       it('should create a child commit', function(done) {
         return testBranchA.commit(dataA[1], function(err, head) {
           assert.equal(head, dataAHashes[1]);
-          testData(testBranchA, dataA[1]);
-          return testBranchA.dataAtPath('b/d', function(err, d) {
-            assert.equal(d, dataA[0]['b/d']);
-            return done();
+          return testData(testBranchA, dataA[1], function() {
+            return testBranchA.dataAtPath('b/d', function(err, d) {
+              assert.equal(d, dataA[0]['b/d']);
+              return done();
+            });
           });
         });
       });
@@ -423,8 +423,8 @@
     describe 'commit deletes', ->
       it 'should delete data', ->
         data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-        testBranchB.commit data
-        testData testBranchB, data
+        testBranchB.commit data, ->
+          testData testBranchB, data
     describe 'treeAtPath', ->
       it 'should read the root tree', ->
         tree = testBranchA.treeAtPath ''
