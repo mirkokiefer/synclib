@@ -33,8 +33,14 @@ Commit.deserialize = (string) ->
   [ancestors, tree, info] = JSON.parse string
   new Commit ancestors: ancestors, tree: tree, info: info
 
+# helpers
 readOrCreateNewTree = (treeStore) -> (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
 readOrCreateNewTrees = (trees, treeStore, cb) -> async.map trees, readOrCreateNewTree(treeStore), cb
+readCommitTree = (commitStore) -> (hash, cb) -> if not hash then cb null else
+  commitStore.read hash, (err, {tree}) -> cb null, tree
+readCommitTrees = (hashs, commitStore, cb) -> async.map hashs, readCommitTree(commitStore), cb
+
+# recursive parts of Repository
 groupCurrentAndChildTreeData = (data) ->
   currentTreeData = {}; childTreeData = {}
   for {path, value} in data
@@ -131,7 +137,7 @@ findCommonCommit = (commit1, commit2, commitStore, cb) ->
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
   if tree1Hash == tree2Hash then return cb null, trees: [], values: []
-  async.map [tree1Hash, tree2Hash], readOrCreateNewTree(treeStore), (err, [tree1, tree2]) ->
+  readOrCreateNewTrees [tree1Hash, tree2Hash], treeStore, (err, [tree1, tree2]) ->
     diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
     updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
     deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
@@ -146,7 +152,7 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
 
 findDeltaDiff = (tree1Hash, tree2Hash, treeStore, cb) ->
   if tree1Hash == tree2Hash then return cb null, trees: [], values: []
-  async.map [tree1Hash, tree2Hash], readOrCreateNewTree(treeStore), (err, [tree1, tree2]) ->
+  readOrCreateNewTrees [tree1Hash, tree2Hash], treeStore, (err, [tree1, tree2]) ->
     diff = values: [], trees: if tree2Hash then [tree2Hash] else []
     diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
     mapChildTree = (diff, key, cb) ->
@@ -247,11 +253,7 @@ class Repository
   commonCommitWithPaths: (commit1, commit2, cb) -> findCommonCommitWithPaths commit1, commit2, @_commitStore, cb
   diff: (commit1, commit2, cb) ->
     obj = this
-    readCommitTree = (each, cb) ->
-      if each
-        obj._commitStore.read each, (err, commitObj) -> cb null, commitObj.tree
-      else cb null
-    async.map [commit1, commit2], readCommitTree, (err, [tree1, tree2]) ->
+    readCommitTrees [commit1, commit2], obj._commitStore, (err, [tree1, tree2]) ->
       findDiffWithPaths tree1, tree2, obj._treeStore, (err, diff) ->
         translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
         cb null, trees: translatePaths(diff.trees), values: translatePaths(diff.values)
@@ -277,11 +279,7 @@ class Repository
       if commit1 == commonCommit then return cb null, commit2
       else if commit2 == commonCommit then return cb null, commit1
       else
-        readCommitTree = (each, cb) ->
-          if each
-            obj._commitStore.read each, (err, commitObj) -> cb null, commitObj.tree
-          else cb null
-        async.map [commonCommit, commit1, commit2], readCommitTree, (err, [commonTree, tree1, tree2]) ->
+        readCommitTrees [commonCommit, commit1, commit2], obj._commitStore, (err, [commonTree, tree1, tree2]) ->
           mergingCommit commonTree, tree1, tree2, strategy, obj._treeStore, (err, newTree) ->
             obj._commitStore.write (new Commit ancestors: [commit1, commit2], tree: newTree), cb
 
