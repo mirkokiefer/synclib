@@ -14,11 +14,12 @@
     "eventemitter2": "0.4.11"
   },
   "devDependencies": {
-    "mocha": "~1.6.0"
+    "mocha": "~1.6.0",
+    "coffee-script": "~1.4.0"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha",
-    "build": "coffee -o ./lib -c ./src"
+    "test": "./node_modules/.bin/mocha --compilers coffee:coffee-script",
+    "build": "./node_modules/.bin/coffee -o ./lib -cw ./src"
   },
   "main": "lib/index",
   "directories": {
