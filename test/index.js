@@ -454,7 +454,7 @@
           return assertMerge(testBranchB, expectedData, [oldHead, dataAHashes[2]], done);
         });
       });
-      return it('should merge branchA into branchC (they do not have a common commit)', function(done) {
+      it('should merge branchA into branchC (they do not have a common commit)', function(done) {
         var expectedData, oldHeadC;
         expectedData = [
           {
@@ -482,6 +482,16 @@
           ref: dataAHashes[2]
         }, function() {
           return assertMerge(testBranchC, expectedData, [oldHeadC, dataAHashes[2]], done);
+        });
+      });
+      return it('should merge branchA into an empty branch', function(done) {
+        var emptyBranch;
+        emptyBranch = repo.branch();
+        return emptyBranch.merge({
+          ref: testBranchA
+        }, function(err, head) {
+          assert.equal(head, testBranchA.head);
+          return done();
         });
       });
     });

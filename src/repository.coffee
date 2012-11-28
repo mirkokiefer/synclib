@@ -279,6 +279,8 @@ class Repository
     ], cb
   merge: (commit1, commit2, strategy, cb) ->
     obj = this
+    if not commit1 then return cb null, commit2
+    if not commit2 then return cb null, commit1
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
     @commonCommit commit1, commit2, (err, commonCommit) ->
       if commit1 == commonCommit then return cb null, commit2

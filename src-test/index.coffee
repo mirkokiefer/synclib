@@ -244,6 +244,11 @@ describe 'branch', () ->
       oldHeadC = testBranchC.head
       testBranchC.merge ref: dataAHashes[2], ->
         assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]], done
+    it 'should merge branchA into an empty branch', (done) ->
+      emptyBranch = repo.branch()
+      emptyBranch.merge ref: testBranchA, (err, head) ->
+        assert.equal head, testBranchA.head
+        done()
   describe 'commit deletes', ->
     it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
