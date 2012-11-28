@@ -21,6 +21,7 @@ class Queue
   constructor: -> @data = []
   push: (value) -> @data.push value
   pop: -> @data.shift()
+  length: -> @data.length
 
 module.exports =
   objectDiff: objectDiff

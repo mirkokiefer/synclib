@@ -1,7 +1,7 @@
 
 async = require 'async'
 _ = require 'underscore'
-{union, values, keys, intersection, clone, contains, pluck} = _
+{union, values, keys, intersection, clone, contains, pluck, pairs} = _
 {objectDiff, objectDiffObject, addKeyPrefix, Queue} = require './utils'
 Branch = require './branch'
 Store = require './store'
@@ -33,6 +33,14 @@ Commit.deserialize = (string) ->
   [ancestors, tree, info] = JSON.parse string
   new Commit ancestors: ancestors, tree: tree, info: info
 
+# helpers
+readOrCreateNewTree = (treeStore) -> (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
+readOrCreateNewTrees = (trees, treeStore, cb) -> async.map trees, readOrCreateNewTree(treeStore), cb
+readCommitTree = (commitStore) -> (hash, cb) -> if not hash then cb null else
+  commitStore.read hash, (err, {tree}) -> cb null, tree
+readCommitTrees = (hashs, commitStore, cb) -> async.map hashs, readCommitTree(commitStore), cb
+
+# recursive parts of Repository
 groupCurrentAndChildTreeData = (data) ->
   currentTreeData = {}; childTreeData = {}
   for {path, value} in data
@@ -43,50 +51,54 @@ groupCurrentAndChildTreeData = (data) ->
       childTreeData[key].push {path, value}
   [currentTreeData, childTreeData]
 
-commit = (treeHash, data, treeStore) ->
-  if data.length == 0 then return treeHash
-  currentTree = if treeHash then treeStore.read treeHash else new Tree()
-  [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
-  for key, value of currentTreeData
-    if currentTree.childData[key] != value
-      if value then currentTree.childData[key] = value
-      else delete currentTree.childData[key]
-  for key, data of childTreeData
-    previousTree = currentTree.childTrees[key]
-    newChildTree = commit previousTree, data, treeStore
-    if newChildTree != previousTree
-      if newChildTree then currentTree.childTrees[key] = newChildTree
-      else delete currentTree.childTrees[key]
-  if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
-    treeStore.write currentTree
+commit = (treeHash, data, treeStore, cb) ->
+  if data.length == 0 then return cb null, treeHash
+  treeStore.read treeHash, (err, currentTree) ->
+    if not currentTree then currentTree = new Tree()
+    [currentTreeData, childTreeData] = groupCurrentAndChildTreeData data
+    for key, value of currentTreeData
+      if currentTree.childData[key] != value
+        if value then currentTree.childData[key] = value
+        else delete currentTree.childData[key]
+    forEachChildTree = ([key, data], cb) ->
+      previousTree = currentTree.childTrees[key]
+      commit previousTree, data, treeStore, (err, newChildTree) ->
+        if newChildTree != previousTree
+          if newChildTree then currentTree.childTrees[key] = newChildTree
+          else delete currentTree.childTrees[key]
+        cb()
+    async.forEach pairs(childTreeData), forEachChildTree, ->
+      if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
+        treeStore.write currentTree, cb
+      else cb null
 
-readTreeAtPath = (treeHash, treeStore, path) ->
-  tree = treeStore.read treeHash
-  if path.length == 0 then tree
+readTreeAtPath = (treeHash, treeStore, path, cb) ->
+  treeStore.read treeHash, (err, tree) ->
+    if path.length == 0 then cb null, tree
+    else
+      key = path.pop()
+      readTreeAtPath tree.childTrees[key], treeStore, path, cb
+
+read = (treeHash, treeStore, path, cb) ->
+  if not treeHash then cb null
   else
-    key = path.pop()
-    readTreeAtPath tree.childTrees[key], treeStore, path
+    treeStore.read treeHash, (err, tree) ->
+      key = path.pop()
+      if path.length == 0 then cb null, tree.childData[key]
+      else read tree.childTrees[key], treeStore, path, cb
 
-read = (treeHash, treeStore, path) ->
-  if not treeHash then undefined
-  else
-    tree = treeStore.read treeHash
-    key = path.pop()
-    if path.length == 0 then tree.childData[key]
-    else read tree.childTrees[key], treeStore, path
+allPaths = (treeHash, treeStore, cb) ->
+  treeStore.read treeHash, (err, tree) ->
+    paths = (path:[key], value:value for key, value of tree.childData)
+    findChildPaths = (paths, [key, childTree], cb) ->
+      allPaths childTree, treeStore, (err, childPaths) ->
+        res = (path: [key, path...], value:value  for {path, value} in childPaths)
+        cb null, paths.concat res
+    async.reduce pairs(tree.childTrees), paths, findChildPaths, cb
 
-allPaths = (treeHash, treeStore) ->
-  tree = treeStore.read treeHash
-  paths = []
-  for key, childTree of tree.childTrees
-    childPaths = allPaths childTree, treeStore
-    res = (path: [key, path...], value:value  for {path, value} in childPaths)
-    paths = paths.concat res
-  paths.concat (path:[key], value:value for key, value of tree.childData)
-
-commitAncestors = (commitHash, commitStore) ->
-  commitObj = commitStore.read(commitHash)
-  if commitObj then commitObj.ancestors else []
+commitAncestors = (commitHash, commitStore, cb) ->
+  commitStore.read commitHash, (err, commitObj) ->
+    if commitObj then cb null, commitObj.ancestors else cb null, []
 
 findWalkPath = (tree, visited) ->
   arr = [tree]
@@ -94,53 +106,59 @@ findWalkPath = (tree, visited) ->
     arr.push tree
   arr
 
-findCommonCommitWithPaths = (commit1Start, commit2Start, commitStore) ->
+findCommonCommitWithPaths = (commit1Start, commit2Start, commitStore, cb) ->
   if (not commit1Start) or (not commit2Start) then return undefined
   [walker1, walker2] = for each in [commit1Start, commit2Start]
     walker = queue: new Queue, visited: {}    
     walker.queue.push each
     walker.visited[each]=null
     walker
-  while (commit1=walker1.queue.pop()) or (commit2=walker2.queue.pop())
+  result = null
+  walkOneLevel = (cb) ->
+    commit1 = walker1.queue.pop(); commit2 = walker2.queue.pop()
     for [commitHash, visited] in [[commit1, walker2.visited], [commit2, walker1.visited]]
       if visited[commitHash] != undefined
-        return commit: commitHash, commit1Path: findWalkPath(commitHash, walker1.visited), commit2Path: findWalkPath(commitHash, walker2.visited)
-    for [commitHash, walker] in [[commit1, walker1], [commit2, walker2]] 
-      ancestors = commitAncestors commitHash, commitStore
-      for each in ancestors
-        walker.queue.push each
-        if not walker.visited[each] then walker.visited[each] = commitHash
-  undefined
+        result = commit: commitHash, commit1Path: findWalkPath(commitHash, walker1.visited), commit2Path: findWalkPath(commitHash, walker2.visited)
+        return cb null
+    pushAncestors = ([commitHash, walker], cb) ->
+      commitAncestors commitHash, commitStore, (err, ancestors) ->
+        for each in ancestors
+          walker.queue.push each
+          if not walker.visited[each] then walker.visited[each] = commitHash
+        cb()
+    async.forEach [[commit1, walker1], [commit2, walker2]], pushAncestors, cb
+  condition = -> (result == null) and ((walker1.queue.length() > 0) or (walker2.queue.length() > 0))
+  async.whilst condition, walkOneLevel, ->
+    cb null, result
 
-findCommonCommit = (commit1, commit2, commitStore) ->
-  res = findCommonCommitWithPaths commit1, commit2, commitStore
-  if res then res.commit
+findCommonCommit = (commit1, commit2, commitStore, cb) ->
+  findCommonCommitWithPaths commit1, commit2, commitStore, (err, res) ->
+    if res then cb null, res.commit else cb null
 
-findDiffWithPaths = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], values: []
-  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
-    if each then treeStore.read each else new Tree()
-  diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
-  updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
-  deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
-  diff.values = union updatedData, deletedData
-  mapChildTree = (diff, key) ->
-    childDiff = findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore
-    prependPath = (pathHashs) -> {path: [key, path...], value: value} for {path, value} in pathHashs
-    trees: union(diff.trees, prependPath(childDiff.trees)),
-    values: union(diff.values, prependPath(childDiff.values))
-  union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
+findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
+  if tree1Hash == tree2Hash then return cb null, trees: [], values: []
+  readOrCreateNewTrees [tree1Hash, tree2Hash], treeStore, (err, [tree1, tree2]) ->
+    diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
+    updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
+    deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
+    diff.values = union updatedData, deletedData
+    mapChildTree = (diff, key, cb) ->
+      findDiffWithPaths tree1.childTrees[key], tree2.childTrees[key], treeStore, (err, childDiff) ->
+        prependPath = (pathHashs) -> {path: [key, path...], value: value} for {path, value} in pathHashs
+        cb null,
+          trees: union(diff.trees, prependPath(childDiff.trees)),
+          values: union(diff.values, prependPath(childDiff.values))
+    async.reduce union(keys(tree1.childTrees), keys(tree2.childTrees)), diff, mapChildTree, cb
 
-findDeltaDiff = (tree1Hash, tree2Hash, treeStore) ->
-  if tree1Hash == tree2Hash then return trees: [], values: []
-  [tree1, tree2] = for each in [tree1Hash, tree2Hash]
-    if each then treeStore.read each else new Tree()
-  diff = values: [], trees: if tree2Hash then [tree2Hash] else []
-  diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
-  mapChildTree = (diff, key) ->
-    childDiff = findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore
-    trees: union(diff.trees, childDiff.trees), values: union(diff.values, childDiff.values)
-  union(keys(tree1.childTrees), keys(tree2.childTrees)).reduce mapChildTree, diff
+findDeltaDiff = (tree1Hash, tree2Hash, treeStore, cb) ->
+  if tree1Hash == tree2Hash then return cb null, trees: [], values: []
+  readOrCreateNewTrees [tree1Hash, tree2Hash], treeStore, (err, [tree1, tree2]) ->
+    diff = values: [], trees: if tree2Hash then [tree2Hash] else []
+    diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
+    mapChildTree = (diff, key, cb) ->
+      findDeltaDiff tree1.childTrees[key], tree2.childTrees[key], treeStore, (err, childDiff) ->
+        cb null, trees: union(diff.trees, childDiff.trees), values: union(diff.values, childDiff.values)
+    async.reduce union(keys(tree1.childTrees), keys(tree2.childTrees)), diff, mapChildTree, cb
 
 mergeDiffs = (oldDiff, newDiff) ->
   if not newDiff.commits then newDiff.commits = []
@@ -148,48 +166,55 @@ mergeDiffs = (oldDiff, newDiff) ->
   trees: union(oldDiff.trees, newDiff.trees),
   values: union(oldDiff.values, newDiff.values)
 
-findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore) ->
-  if contains commonCommitHashs, toCommitHash then return commits: [], trees: [], values: []
+findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore, cb) ->
+  if contains commonCommitHashs, toCommitHash then return cb null, commits: [], trees: [], values: []
   diff = commits: [toCommitHash], trees: [], values: []
-  toCommit = commitStore.read toCommitHash
-  ancestorDiffs = for ancestor in toCommit.ancestors
-    findDeltaDiff(commitStore.read(ancestor).tree, toCommit.tree, treeStore)
-  if toCommit.ancestors.length == 1
-    diff = mergeDiffs diff, ancestorDiffs[0]
-    mergeDiffs diff, findDelta(commonCommitHashs, toCommit.ancestors[0], treeStore, commitStore)
-  else if toCommit.ancestors.length == 0
-    mergeDiffs diff, findDeltaDiff(null, toCommit.tree, treeStore)
-  else
-    diff = mergeDiffs diff,
-      trees: intersection(pluck(ancestorDiffs, 'trees')...),
-      values: intersection(pluck(ancestorDiffs, 'values')...)
-    reduceFun = (diff, ancestor) ->
-      newCommonTreeHashs = union(findCommonCommit ancestor, each, treeStore for each in commonCommitHashs)
-      mergeDiffs diff, findDelta(newCommonTreeHashs, ancestor, treeStore, commitStore)
-    toCommit.ancestors.reduce reduceFun, diff
+  commitStore.read toCommitHash, (err, toCommit) ->
+    mapAncestorDiffs = (ancestor, cb) ->
+      commitStore.read ancestor, (err, {tree}) ->
+        findDeltaDiff tree, toCommit.tree, treeStore, cb
+    async.map toCommit.ancestors, mapAncestorDiffs, (err, ancestorDiffs) ->
+      if toCommit.ancestors.length == 1
+        diff = mergeDiffs diff, ancestorDiffs[0]
+        findDelta commonCommitHashs, toCommit.ancestors[0], treeStore, commitStore, (err, ancestorDelta) ->
+          cb null, mergeDiffs diff, ancestorDelta
+      else if toCommit.ancestors.length == 0
+        findDeltaDiff null, toCommit.tree, treeStore, (err, deltaDiff) ->
+          cb null, mergeDiffs diff, deltaDiff
+      else
+        diff = mergeDiffs diff,
+          trees: intersection(pluck(ancestorDiffs, 'trees')...),
+          values: intersection(pluck(ancestorDiffs, 'values')...)
+        reduceFun = (diff, ancestor, cb) ->
+          mapCommonCommit = (each, cb) -> findCommonCommit ancestor, each, treeStore, cb
+          async.map commonCommitHashs, mapCommonCommit, (err, newCommonTreeHashs) ->
+            findDelta union(newCommonTreeHashs), ancestor, treeStore, commitStore, (err, ancestorDelta) ->
+              cb null, mergeDiffs diff, ancestorDelta
+        async.reduce toCommit.ancestors, diff, reduceFun, cb
 
-mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
+mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore, cb) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
-  if not conflict then (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
+  if not conflict then (if tree1Hash == commonTreeHash then cb null, tree2Hash else cb null, tree1Hash)
   else
-    [commonTree, tree1, tree2] = for each in [commonTreeHash, tree1Hash, tree2Hash]
-      if each then treeStore.read each
-      else new Tree()
-    newTree = new Tree
-    mergeData = ->
-      for key in union(keys(tree2.childData), keys(tree1.childData))
-        commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
-        conflict = (commonData != data1) and (commonData != data2)
-        if conflict
-          newTree.childData[key] = strategy key, data1, data2
-        else
-          newTree.childData[key] = if data1 == commonData then data2 else data1
-    mergeChildTrees = ->
-      for key in union keys(tree2.childTrees), keys(tree1.childTrees)
-        newTree.childTrees[key] = mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore
-    mergeData()
-    mergeChildTrees()
-    treeStore.write newTree
+    readOrCreateNewTrees [commonTreeHash, tree1Hash, tree2Hash], treeStore, (err, [commonTree, tree1, tree2]) ->
+      newTree = new Tree
+      mergeData = ->
+        for key in union(keys(tree2.childData), keys(tree1.childData))
+          commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
+          conflict = (commonData != data1) and (commonData != data2)
+          if conflict
+            newTree.childData[key] = strategy key, data1, data2
+          else
+            newTree.childData[key] = if data1 == commonData then data2 else data1
+      mergeChildTrees = (cb) ->
+        mergeAtKey = (key, cb) ->
+          mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore, (err, newChildTree) ->
+            newTree.childTrees[key] = newChildTree
+            cb()
+        async.forEach union(keys(tree2.childTrees), keys(tree1.childTrees)), mergeAtKey, cb
+      mergeData()
+      mergeChildTrees ->
+        treeStore.write newTree, cb
 
 class Repository
   constructor: ({@treeStore, @commitStore}={}) ->
@@ -198,54 +223,64 @@ class Repository
     @_treeStore = new Store @treeStore, Tree
     @_commitStore = new Store @commitStore, Commit
   branch: (treeHash) -> new Branch this, treeHash
-  commit: (oldCommitHash, data) ->
-    oldTree = if oldCommitHash then @_commitStore.read(oldCommitHash).tree
-    parsedData = (path: path.split('/').reverse(), value: value for path, value of data)
-    newTree = commit oldTree, parsedData, @_treeStore
-    if newTree == oldTree then return oldCommitHash
-    else
-      ancestors = if oldCommitHash then [oldCommitHash] else []
-      newCommit = new Commit ancestors: ancestors, tree: newTree
-      @_commitStore.write newCommit
-  treeAtPath: (commitHash, path) ->
+  commit: (oldCommitHash, data, cb) ->
+    obj = this
+    @_commitStore.read oldCommitHash, (err, oldCommit) ->
+      oldTree = if oldCommit then oldCommit.tree
+      parsedData = (path: path.split('/').reverse(), value: value for path, value of data)
+      commit oldTree, parsedData, obj._treeStore, (err, newTree) ->
+        if newTree == oldTree then cb null, oldCommitHash
+        else
+          ancestors = if oldCommitHash then [oldCommitHash] else []
+          newCommit = new Commit ancestors: ancestors, tree: newTree
+          obj._commitStore.write newCommit, cb
+  treeAtPath: (commitHash, path, cb) ->
+    obj = this
     path = if path == '' then [] else path.split('/').reverse()
-    {tree} = @_commitStore.read commitHash
-    readTreeAtPath tree, @_treeStore, path    
-  dataAtPath: (commitHash, path) ->
+    @_commitStore.read commitHash, (err, {tree}) ->
+      readTreeAtPath tree, obj._treeStore, path, cb
+  dataAtPath: (commitHash, path, cb) ->
+    obj = this
     path = path.split('/').reverse()
-    {tree} = @_commitStore.read commitHash
-    read tree, @_treeStore, path
-  allPaths: (commitHash) ->
-    {tree} = @_commitStore.read commitHash
-    path:path.join('/'), value:value for {path, value} in allPaths tree, @_treeStore
-  commonCommit: (commit1, commit2) -> findCommonCommit commit1, commit2, @_commitStore
-  commonCommitWithPaths: (commit1, commit2) -> findCommonCommitWithPaths commit1, commit2, @_commitStore
-  diff: (commit1, commit2) ->
-    [tree1, tree2] = for each in [commit1, commit2]
-      if each then @_commitStore.read(each).tree
-    diff = findDiffWithPaths tree1, tree2, @_treeStore
-    translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
-    {trees: translatePaths(diff.trees), values: translatePaths(diff.values)}
-  deltaHashs: ({from, to}) ->
+    @_commitStore.read commitHash, (err, {tree}) ->
+      read tree, obj._treeStore, path, cb
+  allPaths: (commitHash, cb) ->
+    obj = this
+    @_commitStore.read commitHash, (err, {tree}) ->
+      allPaths tree, obj._treeStore, (err, paths) ->
+        cb null, (path:path.join('/'), value:value for {path, value} in paths)
+  commonCommit: (commit1, commit2, cb) -> findCommonCommit commit1, commit2, @_commitStore, cb
+  commonCommitWithPaths: (commit1, commit2, cb) -> findCommonCommitWithPaths commit1, commit2, @_commitStore, cb
+  diff: (commit1, commit2, cb) ->
+    obj = this
+    readCommitTrees [commit1, commit2], obj._commitStore, (err, [tree1, tree2]) ->
+      findDiffWithPaths tree1, tree2, obj._treeStore, (err, diff) ->
+        translatePaths = (array) -> {path: path.join('/'), value} for {path, value} in array
+        cb null, trees: translatePaths(diff.trees), values: translatePaths(diff.values)
+  deltaHashs: ({from, to}, cb) ->
+    obj = this
     diff = commits: [], trees: [], values: []
-    for toEach in to
-      commonCommits = (@commonCommit fromEach, toEach for fromEach in from)
-      diff = mergeDiffs diff, findDelta(commonCommits, toEach, @_treeStore, @_commitStore)
-    diff
-  deltaData: (delta) ->
-    commits: (@commitStore.read each for each in delta.commits)
-    trees: (@treeStore.read each for each in delta.trees)
-    values: delta.values
-  merge: (commit1, commit2, strategy) ->
+    deltaForEach = (diff, toEach, cb) ->
+      async.map from, ((fromEach, cb) -> obj.commonCommit fromEach, toEach, cb), (err, commonCommits) ->
+        commonCommits = _.without commonCommits, undefined
+        findDelta commonCommits, toEach, obj._treeStore, obj._commitStore, (err, newDelta) ->
+          cb null, mergeDiffs diff, newDelta
+    async.reduce to, diff, deltaForEach, cb
+  deltaData: (delta, cb) ->
+    obj = this
+    commits = (cb) -> async.map delta.commits, ((each, cb) -> obj.commitStore.read each, cb), cb
+    trees = (cb) -> async.map delta.trees, ((each, cb) -> obj.treeStore.read each, cb), cb
+    async.parallel [commits, trees], (err, [commitsRes, treesRes]) ->
+      cb null, commits: commitsRes, trees: treesRes, values: delta.values
+  merge: (commit1, commit2, strategy, cb) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
-    commonCommit = @commonCommit commit1, commit2
-    if commit1 == commonCommit then commit2
-    else if commit2 == commonCommit then commit1
-    else
-      [commonTree, tree1, tree2] = for each in [commonCommit, commit1, commit2]
-        if each then @_commitStore.read(each).tree
-      newTree = mergingCommit commonTree, tree1, tree2, strategy, @_treeStore
-      @_commitStore.write new Commit ancestors: [commit1, commit2], tree: newTree
+    @commonCommit commit1, commit2, (err, commonCommit) ->
+      if commit1 == commonCommit then return cb null, commit2
+      else if commit2 == commonCommit then return cb null, commit1
+      else
+        readCommitTrees [commonCommit, commit1, commit2], obj._commitStore, (err, [commonTree, tree1, tree2]) ->
+          mergingCommit commonTree, tree1, tree2, strategy, obj._treeStore, (err, newTree) ->
+            obj._commitStore.write (new Commit ancestors: [commit1, commit2], tree: newTree), cb
 
 module.exports = Repository

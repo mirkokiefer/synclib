@@ -8,24 +8,28 @@ normalize = (commitOrBranch) -> if commitOrBranch.constructor == Branch then com
 
 class Branch extends EventEmitter
   constructor: (@repo, @head) ->
-  commit: (data) ->
-    @head = @repo.commit @head, data
-    @emit 'postCommit', @head
-    @head
-  treeAtPath: (path) -> @repo.treeAtPath @head, path
-  dataAtPath: (path) -> @repo.dataAtPath @head, path
-  allPaths: -> @repo.allPaths @head
-  commonCommit: (ref) -> @repo.commonCommit @head, normalize ref
-  commonCommitWithPaths: (ref) -> @repo.commonCommitWithPaths @head, normalize ref
-  diff: (ref) -> @repo.diff @head, normalize(ref)
-  deltaHashs: ({from, to}={}) ->
+  commit: (data, cb) ->
+    obj = this
+    @repo.commit @head, data, (err, head) ->
+      obj.head = head
+      obj.emit 'postCommit', @head
+      cb null, head
+  treeAtPath: (path, cb) -> @repo.treeAtPath @head, path, cb
+  dataAtPath: (path, cb) -> @repo.dataAtPath @head, path, cb
+  allPaths: (cb) -> @repo.allPaths @head, cb
+  commonCommit: (ref, cb) -> @repo.commonCommit @head, normalize(ref), cb
+  commonCommitWithPaths: (ref, cb) -> @repo.commonCommitWithPaths @head, normalize(ref), cb
+  diff: (ref, cb) -> @repo.diff @head, normalize(ref), cb
+  deltaHashs: ({from, to}={}, cb) ->
     head = if @head then [@head] else []
     [from, to] = if from then [normalizeAll(from), head] else
       if to then [head, normalizeAll(to)]
       else [[], head]
-    @repo.deltaHashs from: from, to: to
-  merge: ({ref, strategy}) ->
+    @repo.deltaHashs from: from, to: to, cb
+  merge: ({ref, strategy}, cb) ->
     obj = this
-    @head = @repo.merge @head, normalize(ref), strategy
+    @repo.merge @head, normalize(ref), strategy, (err, head) ->
+      obj.head = head
+      cb null, head
 
 module.exports = Branch

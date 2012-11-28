@@ -3,7 +3,7 @@ assert = require 'assert'
 {Repository} = require '../lib/index'
 async = require 'async'
 _ = require 'underscore'
-{union, difference, keys, values, pluck, contains, where} = _
+{union, difference, keys, values, pluck, contains, where, pairs} = _
 repo = new Repository()
 [testBranchA, testBranchB, testBranchC, testBranchD] = (repo.branch() for each in ['a', 'b', 'c', 'd'])
 
@@ -17,16 +17,19 @@ assertPathData = (data, expected) ->
     assert.equal found.length, 1
     assert.equal found[0].value, value
 
-testData = (branch, data) ->
-  for path, value of data
-    assert.equal branch.dataAtPath(path), value
+testData = (branch, data, cb) ->
+  forEach = ([path, expectedValue], cb) ->
+    branch.dataAtPath path, (err, value) ->
+      assert.equal value, expectedValue
+      cb()
+  async.forEach pairs(data), forEach, cb
 
-testCommitAncestors = (commitHash, hashs) ->
+testCommitAncestors = (commitHash, hashs, cb) ->
   [first, rest...] = hashs
   assert.equal commitHash, first
   if rest.length > 0
-    {ancestors} = repo._commitStore.read commitHash
-    testCommitAncestors ancestors[0], rest
+    repo._commitStore.read commitHash, (err, {ancestors}) ->
+      testCommitAncestors ancestors[0], rest, cb
 
 dataA = [
   {'a': "hashA 0.0", 'b/c': "hashA 0.1", 'b/d': "hashA 0.2"}
@@ -76,111 +79,130 @@ c0 - c1 <- C
 
 describe 'branch', () ->
   describe 'commit', () ->
-    it 'should commit and read objects', () ->
-      head = testBranchA.commit dataA[0]
-      assert.equal head, dataAHashes[0]
-      testData testBranchA, dataA[0]
-    it 'should create a child commit', () ->
-      head = testBranchA.commit dataA[1]
-      assert.equal head, dataAHashes[1]
-      testData testBranchA, dataA[1]
-      d = testBranchA.dataAtPath 'b/d'
-      assert.equal d, dataA[0]['b/d']
-    it 'should not create a new commit', ->
+    it 'should commit and read objects', (done) ->
+      testBranchA.commit dataA[0], (err, head) ->
+        assert.equal head, dataAHashes[0]
+        testData testBranchA, dataA[0], done
+    it 'should create a child commit', (done) ->
+      testBranchA.commit dataA[1], (err, head) ->
+        assert.equal head, dataAHashes[1]
+        testData testBranchA, dataA[1], ->
+          testBranchA.dataAtPath 'b/d', (err, d) ->
+            assert.equal d, dataA[0]['b/d']
+            done()
+    it 'should not create a new commit', (done) ->
       oldHead = testBranchA.head
-      head = testBranchA.commit dataA[1]
-      assert.equal head, oldHead
-    it 'should read from a previous commit', () ->
+      testBranchA.commit dataA[1], (err, head) ->
+        assert.equal head, oldHead
+        done()
+    it 'should read from a previous commit', (done) ->
       head1 = testBranchA.head
-      head2 = testBranchA.commit dataA[2]
-      assert.equal head2, dataAHashes[2]
-      eHead1 = repo.dataAtPath head1, 'b/e'
-      assert.equal eHead1, dataA[1]['b/e']
-      eHead2 = repo.dataAtPath head2, 'b/e'
-      assert.equal eHead2, dataA[2]['b/e']
-      eHead2 = testBranchA.dataAtPath 'b/e'
-      assert.equal eHead2, dataA[2]['b/e']
-    it 'should populate more test branches', () ->
-      commitData = ({branch, data, ref}) ->
+      testBranchA.commit dataA[2], (err, head2) ->
+        assert.equal head2, dataAHashes[2]
+        repo.dataAtPath head1, 'b/e', (err, eHead1) ->
+          assert.equal eHead1, dataA[1]['b/e']
+          repo.dataAtPath head2, 'b/e', (err, eHead2) ->
+            assert.equal eHead2, dataA[2]['b/e']
+            done()
+    it 'should populate more test branches', (done) ->
+      commitData = ({branch, data, ref}, cb) ->
         branch.head = ref
-        branch.commit each for each in data
-      commitData each for each in [commitB, commitC, commitD]
-      testCommitAncestors testBranchB.head, dataBHashes
+        async.forEach data, ((each, cb) -> branch.commit each, cb), cb
+      async.forEach [commitB, commitC, commitD], commitData, ->
+        testCommitAncestors testBranchB.head, dataBHashes
+        done()
   describe 'commonCommit', () ->
     # should maybe output the path as well
-    it 'should find a common commit', ->
-      res1 = testBranchA.commonCommit testBranchB
-      assert.equal res1, dataAHashes[1]
-      res2 = testBranchA.commonCommit testBranchD
-      assert.equal res2, dataAHashes[1]
-      res3 = testBranchA.commonCommit dataAHashes[0]
-      assert.equal res3, dataAHashes[0]
-      res4 = repo.commonCommit dataAHashes[2], dataAHashes[0]
-      assert.equal res4, dataAHashes[0]
-      res5 = repo.commonCommit dataAHashes[0], dataAHashes[2]
-      assert.equal res5, dataAHashes[0]
-    it 'should find a common commit with paths', ->
-      res1 = testBranchA.commonCommitWithPaths testBranchB
-      expectedCommit1Path = [dataAHashes[1], dataAHashes[2]]
-      expectedCommit2Path = dataBHashes.concat dataAHashes[1]
-      assertArray res1.commit1Path, expectedCommit1Path
-      assertArray res1.commit2Path, expectedCommit2Path
-      res2 = testBranchA.commonCommitWithPaths dataAHashes[0]
-      assert.equal res2.commit2Path.length, 1
-    it 'should not find a common commit', ->
-      res = testBranchA.commonCommit testBranchC
-      assert.equal res, undefined
+    it 'should find a common commit', (done) ->
+      tests = [
+        (cb) -> testBranchA.commonCommit testBranchB, cb
+        (cb) -> testBranchA.commonCommit testBranchD, cb
+        (cb) -> testBranchA.commonCommit dataAHashes[0], cb
+        (cb) -> repo.commonCommit dataAHashes[2], dataAHashes[0], cb
+        (cb) -> repo.commonCommit dataAHashes[0], dataAHashes[2], cb
+      ]
+      async.series tests, (err, results) ->
+        expectedResults = [dataAHashes[1], dataAHashes[1], dataAHashes[0], dataAHashes[0], dataAHashes[0]]
+        for each, i in expectedResults
+          assert.equal results[i], each
+        done()
+    it 'should find a common commit with paths', (done) ->
+      testBranchA.commonCommitWithPaths testBranchB, (err, res1) ->
+        expectedCommit1Path = [dataAHashes[1], dataAHashes[2]]
+        expectedCommit2Path = dataBHashes.concat dataAHashes[1]
+        assertArray res1.commit1Path, expectedCommit1Path
+        assertArray res1.commit2Path, expectedCommit2Path
+        testBranchA.commonCommitWithPaths dataAHashes[0], (err, res2) ->
+          assert.equal res2.commit2Path.length, 1
+          done()
+    it 'should not find a common commit', (done) ->
+      testBranchA.commonCommit testBranchC, (err, res) ->
+        assert.equal res, undefined
+        done()
   describe 'diff', () ->
-    it 'should find the diff between two commits', ->
-      diff = repo.diff dataAHashes[0], dataAHashes[1]
-      assert.equal diff.values.length, _.keys(dataA[1]).length
-      for {path, value} in diff.values
-        assert.equal value, dataA[1][path]
-      assert.equal diff.trees.length, 3
-    it 'should find the diff between null and a commit', ->
-      diff = repo.diff null, dataAHashes[0]
-      for {path, value} in diff.values
-        assert.equal value, dataA[0][path]
-    it 'should find the diff between the current head and another commit', ->
-      diff = testBranchA.diff testBranchB
-      assert.ok diff
+    it 'should find the diff between two commits', (done) ->
+      repo.diff dataAHashes[0], dataAHashes[1], (err, diff) ->
+        assert.equal diff.values.length, _.keys(dataA[1]).length
+        for {path, value} in diff.values
+          assert.equal value, dataA[1][path]
+        assert.equal diff.trees.length, 3
+        done()
+    it 'should find the diff between null and a commit', (done) ->
+      repo.diff null, dataAHashes[0], (err, diff) ->
+        for {path, value} in diff.values
+          assert.equal value, dataA[0][path]
+        done()
+    it 'should find the diff between the current head and another commit', (done) ->
+      testBranchA.diff testBranchB, (err, diff) ->
+        assert.ok diff
+        done()
   describe 'deltaHashs', () ->
-    it 'should find the diff as hashes between heads in the past and the current head', () ->
-      diff = testBranchA.deltaHashs from: [dataAHashes[0]]
-      realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
-      assertArray diff.values, realDataHashs
-    it 'should find the diff between a head in the past that doesnt exist and the current head', () ->
-      diff = testBranchA.deltaHashs from: ['non-existing']
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      assertArray diff.values, realDataHashs
-    it 'should work without a ref - returns the full diff', () ->
-      diff = testBranchA.deltaHashs()
-      realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
-      assertArray diff.values, realDataHashs
-    it 'should compute the value to a disconnected branch', ->
-      diff = testBranchA.deltaHashs to: [testBranchC]
-      realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
-      assertArray diff.values, realDataHashs
-    it 'should compute the value from a single commit to multiple commits', ->
-      diff = testBranchD.deltaHashs to: [testBranchA, testBranchB]
-      realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
-      assertArray diff.values, realDataHashs
-    it 'should compute the delta from multiple commits to a single commit', ->
-      diff = testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC]
-      realDataHashs = union values(dataD[0]), values(dataD[1])
-      assertArray diff.values, realDataHashs
+    it 'should find the diff as hashes between heads in the past and the current head', (done) ->
+      testBranchA.deltaHashs from: [dataAHashes[0]], (err, diff) ->
+        realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]))
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should find the diff between a head in the past that doesnt exist and the current head', (done) ->
+      testBranchA.deltaHashs from: ['non-existing'], (err, diff) ->
+        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should work without a ref - returns the full diff', (done) ->
+      testBranchA.deltaHashs {}, (err, diff) ->
+        realDataHashs = _.union _.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the value to a disconnected branch', (done) ->
+      testBranchA.deltaHashs to: [testBranchC], (err, diff) ->
+        realDataHashs = _.union _.values(dataC[0]), _.values(dataC[1])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the value from a single commit to multiple commits', (done) ->
+      testBranchD.deltaHashs to: [testBranchA, testBranchB], (err, diff) ->
+        realDataHashs = _.union _.values(dataA[2]), _.values(dataB[3])
+        assertArray diff.values, realDataHashs
+        done()
+    it 'should compute the delta from multiple commits to a single commit', (done) ->
+      testBranchD.deltaHashs from: [testBranchA, testBranchB, testBranchC], (err, diff) ->
+        realDataHashs = union values(dataD[0]), values(dataD[1])
+        assertArray diff.values, realDataHashs
+        done()
   describe 'delta', () ->
-    it 'should find the diff including the actual trees and commits', () ->
-      diff = repo.deltaData testBranchA.deltaHashs from: [dataAHashes[0]]
-      assert.equal diff.trees.length, 5
-      assert.ok diff.trees[0].length > 40
-      assert.ok diff.commits[0].length > 40
+    it 'should find the diff including the actual trees and commits', (done) ->
+      testBranchA.deltaHashs from: [dataAHashes[0]], (err, diffHashs) ->
+        repo.deltaData diffHashs, (err, diff) ->
+          assert.equal diff.trees.length, 5
+          assert.ok diff.trees[0].length > 40
+          assert.ok diff.commits[0].length > 40
+          done()
   describe 'merge', () ->
-    assertMerge = (branch, expectedData, expectedHeads) ->
-      head = repo._commitStore.read branch.head
-      assertArray head.ancestors, expectedHeads
-      assertPathData branch.allPaths(), expectedData
-    it 'should merge branchB into branchA', () ->
+    assertMerge = (branch, expectedData, expectedHeads, cb) ->
+      repo._commitStore.read branch.head, (err, head) ->
+        assertArray head.ancestors, expectedHeads
+        branch.allPaths (err, paths) ->
+          assertPathData paths, expectedData
+          cb()
+    it 'should merge branchB into branchA', (done) ->
       expectedData = [
         { path: 'b/f/a', value: 'hashB 3.2' },
         { path: 'b/f/g', value: 'hashA 1.3' },
@@ -194,9 +216,9 @@ describe 'branch', () ->
       ]
       oldHead = testBranchA.head
       strategy = (path, value1Hash, value2Hash) -> value2Hash
-      testBranchA.merge ref: testBranchB, strategy: strategy
-      assertMerge testBranchA, expectedData, [oldHead, testBranchB.head]
-    it 'should merge branchA into branchB', () ->
+      testBranchA.merge ref: testBranchB, strategy: strategy, ->
+        assertMerge testBranchA, expectedData, [oldHead, testBranchB.head], done
+    it 'should merge branchA into branchB', (done) ->
       expectedData = [
         { path: 'b/f/a', value: 'hashB 3.2' },
         { path: 'b/f/g', value: 'hashA 1.3' },
@@ -209,10 +231,10 @@ describe 'branch', () ->
         { path: 'u', value: 'hashB 2.1' }
       ]
       oldHead = testBranchB.head
-      testBranchB.merge ref: dataAHashes[2]
-      assertMerge testBranchB, expectedData, [oldHead, dataAHashes[2]]
-      assert.equal testBranchB.head, testBranchA.head
-    it 'should merge branchA into branchC (they do not have a common commit)', () ->
+      testBranchB.merge ref: dataAHashes[2], ->
+        assert.equal testBranchB.head, testBranchA.head
+        assertMerge testBranchB, expectedData, [oldHead, dataAHashes[2]], done
+    it 'should merge branchA into branchC (they do not have a common commit)', (done) ->
       expectedData = [
         { path: 'b/f/g', value: 'hashA 1.3' },
         { path: 'b/c', value: 'hashA 1.1' },
@@ -222,24 +244,28 @@ describe 'branch', () ->
         { path: 'a', value: 'hashC 1.0' }
       ]
       oldHeadC = testBranchC.head
-      testBranchC.merge ref: dataAHashes[2]
-      assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]
+      testBranchC.merge ref: dataAHashes[2], ->
+        assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]], done
   describe 'commit deletes', ->
-    it 'should delete data', ->
+    it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-      testBranchB.commit data
-      testData testBranchB, data
+      testBranchB.commit data, (err, head) ->
+        testData testBranchB, data, done
   describe 'treeAtPath', ->
-    it 'should read the root tree', ->
-      tree = testBranchA.treeAtPath ''
-      assert.ok tree.childData
-    it 'should read a child tree', ->
-      tree = testBranchA.treeAtPath 'b/f'
-      assert.equal tree.childData.g, dataA[1]['b/f/g']
-  describe 'paths', ->
-    it 'should return all tracked paths', ->
+    it 'should read the root tree', (done) ->
+      testBranchA.treeAtPath '', (err, tree) ->
+        assert.ok tree.childData
+        done()
+    it 'should read a child tree', (done) ->
+      testBranchA.treeAtPath 'b/f', (err, tree) ->
+        assert.equal tree.childData.g, dataA[1]['b/f/g']
+        done()
+  describe 'paths', (done) ->
+    it 'should return all tracked paths', (done) ->
       testBranch = repo.branch dataAHashes[0]
       expectedPaths = keys dataA[0]
-      paths = pluck testBranch.allPaths(), 'path'
-      assert.equal difference(paths, expectedPaths).length, 0
-      assert.equal difference(expectedPaths, paths).length, 0
+      testBranch.allPaths (err, paths) ->
+        paths = pluck paths, 'path'
+        assert.equal difference(paths, expectedPaths).length, 0
+        assert.equal difference(expectedPaths, paths).length, 0
+        done()
