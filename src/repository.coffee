@@ -182,11 +182,11 @@ findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore, cb) ->
         findDeltaDiff null, toCommit.tree, treeStore, (err, deltaDiff) ->
           cb null, mergeDiffs diff, deltaDiff
       else
-        intersectingHashs = (hashObjects) ->
+        findIntersectingHashs = (hashObjects) ->
           intersectingHashs = intersection((pluck each, 'hash' for each in hashObjects)...)
-          union(hashObjects).filter (each) -> contains intersectingHashs, each
+          union(hashObjects...).filter (each) -> contains intersectingHashs, each.hash
         diff = mergeDiffs diff,
-          trees: intersectingHashs (pluck ancestorDiffs, 'trees')
+          trees: findIntersectingHashs (pluck ancestorDiffs, 'trees')
           values: intersection(pluck(ancestorDiffs, 'values')...)
         reduceFun = (diff, ancestor, cb) ->
           mapCommonCommit = (each, cb) -> findCommonCommit ancestor, each, treeStore, cb
@@ -271,6 +271,12 @@ class Repository
     async.reduce to, diff, deltaForEach, (err, delta) ->
       serialize = (objects) -> ({hash, data: data.constructor.serialize data} for {hash, data} in objects)
       cb null, commits: serialize(delta.commits), trees: serialize(delta.trees), values: delta.values
+  applyDelta: (delta, cb) ->
+    obj = this
+    async.parallel [
+      (cb) -> obj.commitStore.writeAll (pluck delta.commits, 'data'), cb
+      (cb) -> obj.treeStore.writeAll (pluck delta.trees, 'data'), cb
+    ], cb
   merge: (commit1, commit2, strategy, cb) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
