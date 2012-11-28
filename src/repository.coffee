@@ -33,6 +33,8 @@ Commit.deserialize = (string) ->
   [ancestors, tree, info] = JSON.parse string
   new Commit ancestors: ancestors, tree: tree, info: info
 
+readOrCreateNewTree = (treeStore) -> (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
+readOrCreateNewTrees = (trees, treeStore, cb) -> async.map trees, readOrCreateNewTree(treeStore), cb
 groupCurrentAndChildTreeData = (data) ->
   currentTreeData = {}; childTreeData = {}
   for {path, value} in data
@@ -129,8 +131,7 @@ findCommonCommit = (commit1, commit2, commitStore, cb) ->
 
 findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
   if tree1Hash == tree2Hash then return cb null, trees: [], values: []
-  readOrCreateNewTree = (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
-  async.map [tree1Hash, tree2Hash], readOrCreateNewTree, (err, [tree1, tree2]) ->
+  async.map [tree1Hash, tree2Hash], readOrCreateNewTree(treeStore), (err, [tree1, tree2]) ->
     diff = values: [], trees: [{path:[], value: if tree2Hash then tree2Hash else null}]
     updatedData = ({path:[key], value:value} for key, value of tree2.childData when tree1.childData[key] != value)
     deletedData = ({path:[key], value:null} for key of tree1.childData when tree2.childData[key] == undefined)
@@ -145,8 +146,7 @@ findDiffWithPaths = (tree1Hash, tree2Hash, treeStore, cb) ->
 
 findDeltaDiff = (tree1Hash, tree2Hash, treeStore, cb) ->
   if tree1Hash == tree2Hash then return cb null, trees: [], values: []
-  readOrCreateNewTree = (hash, cb) -> if hash then treeStore.read hash, cb else cb null, new Tree()
-  async.map [tree1Hash, tree2Hash], readOrCreateNewTree, (err, [tree1, tree2]) ->
+  async.map [tree1Hash, tree2Hash], readOrCreateNewTree(treeStore), (err, [tree1, tree2]) ->
     diff = values: [], trees: if tree2Hash then [tree2Hash] else []
     diff.values = (value for key, value of tree2.childData when tree1.childData[key] != value)
     mapChildTree = (diff, key, cb) ->
@@ -186,28 +186,29 @@ findDelta = (commonCommitHashs, toCommitHash, treeStore, commitStore, cb) ->
               cb null, mergeDiffs diff, ancestorDelta
         async.reduce toCommit.ancestors, diff, reduceFun, cb
 
-mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore) ->
+mergingCommit = (commonTreeHash, tree1Hash, tree2Hash, strategy, treeStore, cb) ->
   conflict = (commonTreeHash != tree1Hash) and (commonTreeHash != tree2Hash)
-  if not conflict then (if tree1Hash == commonTreeHash then tree2Hash else tree1Hash)
+  if not conflict then (if tree1Hash == commonTreeHash then cb null, tree2Hash else cb null, tree1Hash)
   else
-    [commonTree, tree1, tree2] = for each in [commonTreeHash, tree1Hash, tree2Hash]
-      if each then treeStore.read each
-      else new Tree()
-    newTree = new Tree
-    mergeData = ->
-      for key in union(keys(tree2.childData), keys(tree1.childData))
-        commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
-        conflict = (commonData != data1) and (commonData != data2)
-        if conflict
-          newTree.childData[key] = strategy key, data1, data2
-        else
-          newTree.childData[key] = if data1 == commonData then data2 else data1
-    mergeChildTrees = ->
-      for key in union keys(tree2.childTrees), keys(tree1.childTrees)
-        newTree.childTrees[key] = mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore
-    mergeData()
-    mergeChildTrees()
-    treeStore.write newTree
+    readOrCreateNewTrees [commonTreeHash, tree1Hash, tree2Hash], treeStore, (err, [commonTree, tree1, tree2]) ->
+      newTree = new Tree
+      mergeData = ->
+        for key in union(keys(tree2.childData), keys(tree1.childData))
+          commonData = commonTree.childData[key]; data1 = tree1.childData[key]; data2 = tree2.childData[key];
+          conflict = (commonData != data1) and (commonData != data2)
+          if conflict
+            newTree.childData[key] = strategy key, data1, data2
+          else
+            newTree.childData[key] = if data1 == commonData then data2 else data1
+      mergeChildTrees = (cb) ->
+        mergeAtKey = (key, cb) ->
+          mergingCommit commonTree.childTrees[key], tree1.childTrees[key], tree2.childTrees[key], strategy, treeStore, (err, newChildTree) ->
+            newTree.childTrees[key] = newChildTree
+            cb()
+        async.forEach union(keys(tree2.childTrees), keys(tree1.childTrees)), mergeAtKey, cb
+      mergeData()
+      mergeChildTrees ->
+        treeStore.write newTree, cb
 
 class Repository
   constructor: ({@treeStore, @commitStore}={}) ->
@@ -269,16 +270,19 @@ class Repository
     trees = (cb) -> async.map delta.trees, ((each, cb) -> obj.treeStore.read each, cb), cb
     async.parallel [commits, trees], (err, [commitsRes, treesRes]) ->
       cb null, commits: commitsRes, trees: treesRes, values: delta.values
-  merge: (commit1, commit2, strategy) ->
+  merge: (commit1, commit2, strategy, cb) ->
     obj = this
     strategy = if strategy then strategy else (path, value1Hash, value2Hash) -> value1Hash
-    commonCommit = @commonCommit commit1, commit2
-    if commit1 == commonCommit then commit2
-    else if commit2 == commonCommit then commit1
-    else
-      [commonTree, tree1, tree2] = for each in [commonCommit, commit1, commit2]
-        if each then @_commitStore.read(each).tree
-      newTree = mergingCommit commonTree, tree1, tree2, strategy, @_treeStore
-      @_commitStore.write new Commit ancestors: [commit1, commit2], tree: newTree
+    @commonCommit commit1, commit2, (err, commonCommit) ->
+      if commit1 == commonCommit then return cb null, commit2
+      else if commit2 == commonCommit then return cb null, commit1
+      else
+        readCommitTree = (each, cb) ->
+          if each
+            obj._commitStore.read each, (err, commitObj) -> cb null, commitObj.tree
+          else cb null
+        async.map [commonCommit, commit1, commit2], readCommitTree, (err, [commonTree, tree1, tree2]) ->
+          mergingCommit commonTree, tree1, tree2, strategy, obj._treeStore, (err, newTree) ->
+            obj._commitStore.write (new Commit ancestors: [commit1, commit2], tree: newTree), cb
 
 module.exports = Repository

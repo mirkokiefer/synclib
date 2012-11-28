@@ -26,8 +26,10 @@ class Branch extends EventEmitter
       if to then [head, normalizeAll(to)]
       else [[], head]
     @repo.deltaHashs from: from, to: to, cb
-  merge: ({ref, strategy}) ->
+  merge: ({ref, strategy}, cb) ->
     obj = this
-    @head = @repo.merge @head, normalize(ref), strategy
+    @repo.merge @head, normalize(ref), strategy, (err, head) ->
+      obj.head = head
+      cb null, head
 
 module.exports = Branch

@@ -195,12 +195,14 @@ describe 'branch', () ->
           assert.ok diff.trees[0].length > 40
           assert.ok diff.commits[0].length > 40
           done()
-  ###describe 'merge', () ->
-    assertMerge = (branch, expectedData, expectedHeads) ->
-      head = repo._commitStore.read branch.head
-      assertArray head.ancestors, expectedHeads
-      assertPathData branch.allPaths(), expectedData
-    it 'should merge branchB into branchA', () ->
+  describe 'merge', () ->
+    assertMerge = (branch, expectedData, expectedHeads, cb) ->
+      repo._commitStore.read branch.head, (err, head) ->
+        assertArray head.ancestors, expectedHeads
+        branch.allPaths (err, paths) ->
+          assertPathData paths, expectedData
+          cb()
+    it 'should merge branchB into branchA', (done) ->
       expectedData = [
         { path: 'b/f/a', value: 'hashB 3.2' },
         { path: 'b/f/g', value: 'hashA 1.3' },
@@ -214,9 +216,9 @@ describe 'branch', () ->
       ]
       oldHead = testBranchA.head
       strategy = (path, value1Hash, value2Hash) -> value2Hash
-      testBranchA.merge ref: testBranchB, strategy: strategy
-      assertMerge testBranchA, expectedData, [oldHead, testBranchB.head]
-    it 'should merge branchA into branchB', () ->
+      testBranchA.merge ref: testBranchB, strategy: strategy, ->
+        assertMerge testBranchA, expectedData, [oldHead, testBranchB.head], done
+    it 'should merge branchA into branchB', (done) ->
       expectedData = [
         { path: 'b/f/a', value: 'hashB 3.2' },
         { path: 'b/f/g', value: 'hashA 1.3' },
@@ -229,10 +231,10 @@ describe 'branch', () ->
         { path: 'u', value: 'hashB 2.1' }
       ]
       oldHead = testBranchB.head
-      testBranchB.merge ref: dataAHashes[2]
-      assertMerge testBranchB, expectedData, [oldHead, dataAHashes[2]]
-      assert.equal testBranchB.head, testBranchA.head
-    it 'should merge branchA into branchC (they do not have a common commit)', () ->
+      testBranchB.merge ref: dataAHashes[2], ->
+        assert.equal testBranchB.head, testBranchA.head
+        assertMerge testBranchB, expectedData, [oldHead, dataAHashes[2]], done
+    it 'should merge branchA into branchC (they do not have a common commit)', (done) ->
       expectedData = [
         { path: 'b/f/g', value: 'hashA 1.3' },
         { path: 'b/c', value: 'hashA 1.1' },
@@ -242,8 +244,8 @@ describe 'branch', () ->
         { path: 'a', value: 'hashC 1.0' }
       ]
       oldHeadC = testBranchC.head
-      testBranchC.merge ref: dataAHashes[2]
-      assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]###
+      testBranchC.merge ref: dataAHashes[2], ->
+        assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]], done
   describe 'commit deletes', ->
     it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
