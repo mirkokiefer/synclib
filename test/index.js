@@ -297,19 +297,22 @@
         });
       });
     });
-    describe('deltaHashs', function() {
+    describe('delta', function() {
       it('should find the diff as hashes between heads in the past and the current head', function(done) {
-        return testBranchA.deltaHashs({
+        return testBranchA.delta({
           from: [dataAHashes[0]]
         }, function(err, diff) {
-          var realDataHashs;
+          var expectedSerialized, realDataHashs;
           realDataHashs = _.union(_.values(dataA[1]), _.values(dataA[2]));
           assertArray(diff.values, realDataHashs);
+          assertArray(pluck(diff.commits, 'hash'), [dataAHashes[1], dataAHashes[2]]);
+          expectedSerialized = ['[["5bc500f2e12c1cf10719925cf1848413965603ff"],"61b4e5cba3e16752ce4d9b30cc1509ff62890293",[]]', '[["b2ef9fc4cb736db036b5dc098f1054546bcaf1be"],"1aebadc7bcec1e477ba1cb9a9a4536b35f398779",[]]'];
+          assertArray(pluck(diff.commits, 'data'), expectedSerialized);
           return done();
         });
       });
       it('should find the diff between a head in the past that doesnt exist and the current head', function(done) {
-        return testBranchA.deltaHashs({
+        return testBranchA.delta({
           from: ['non-existing']
         }, function(err, diff) {
           var realDataHashs;
@@ -319,7 +322,7 @@
         });
       });
       it('should work without a ref - returns the full diff', function(done) {
-        return testBranchA.deltaHashs({}, function(err, diff) {
+        return testBranchA.delta({}, function(err, diff) {
           var realDataHashs;
           realDataHashs = _.union(_.values(dataA[0]), _.values(dataA[1]), _.values(dataA[2]));
           assertArray(diff.values, realDataHashs);
@@ -327,7 +330,7 @@
         });
       });
       it('should compute the value to a disconnected branch', function(done) {
-        return testBranchA.deltaHashs({
+        return testBranchA.delta({
           to: [testBranchC]
         }, function(err, diff) {
           var realDataHashs;
@@ -337,7 +340,7 @@
         });
       });
       it('should compute the value from a single commit to multiple commits', function(done) {
-        return testBranchD.deltaHashs({
+        return testBranchD.delta({
           to: [testBranchA, testBranchB]
         }, function(err, diff) {
           var realDataHashs;
@@ -347,24 +350,12 @@
         });
       });
       return it('should compute the delta from multiple commits to a single commit', function(done) {
-        return testBranchD.deltaHashs({
+        return testBranchD.delta({
           from: [testBranchA, testBranchB, testBranchC]
         }, function(err, diff) {
           var realDataHashs;
           realDataHashs = union(values(dataD[0]), values(dataD[1]));
           assertArray(diff.values, realDataHashs);
-          return done();
-        });
-      });
-    });
-    describe('delta', function() {
-      return it('should find the diff including the actual trees and commits', function(done) {
-        return testBranchA.deltaData({
-          from: [dataAHashes[0]]
-        }, function(err, diff) {
-          assert.equal(diff.trees.length, 5);
-          assert.ok(diff.trees[0].length > 40);
-          assert.ok(diff.commits[0].length > 40);
           return done();
         });
       });
