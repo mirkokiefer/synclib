@@ -62,6 +62,7 @@ commit = (treeHash, data, treeStore, cb) ->
     async.forEach pairs(childTreeData), forEachChildTree, ->
       if (_.size(currentTree.childTrees) > 0) or (_.size(currentTree.childData) > 0)
         treeStore.write currentTree, cb
+      else cb null
 
 readTreeAtPath = (treeHash, treeStore, path) ->
   tree = treeStore.read treeHash
@@ -71,7 +72,7 @@ readTreeAtPath = (treeHash, treeStore, path) ->
     readTreeAtPath tree.childTrees[key], treeStore, path
 
 read = (treeHash, treeStore, path, cb) ->
-  if not treeHash then undefined
+  if not treeHash then cb null
   else
     treeStore.read treeHash, (err, tree) ->
       key = path.pop()

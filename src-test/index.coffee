@@ -243,13 +243,13 @@ describe 'branch', () ->
       ]
       oldHeadC = testBranchC.head
       testBranchC.merge ref: dataAHashes[2]
-      assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]
+      assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]###
   describe 'commit deletes', ->
-    it 'should delete data', ->
+    it 'should delete data', (done) ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-      testBranchB.commit data, ->
-        testData testBranchB, data
-  describe 'treeAtPath', ->
+      testBranchB.commit data, (err, head) ->
+        testData testBranchB, data, done
+  ###describe 'treeAtPath', ->
     it 'should read the root tree', ->
       tree = testBranchA.treeAtPath ''
       assert.ok tree.childData

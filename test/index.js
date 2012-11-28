@@ -357,7 +357,7 @@
         });
       });
     });
-    return describe('delta', function() {
+    describe('delta', function() {
       return it('should find the diff including the actual trees and commits', function(done) {
         return testBranchA.deltaHashs({
           from: [dataAHashes[0]]
@@ -420,12 +420,23 @@
         oldHeadC = testBranchC.head
         testBranchC.merge ref: dataAHashes[2]
         assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]
-    describe 'commit deletes', ->
-      it 'should delete data', ->
-        data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
-        testBranchB.commit data, ->
-          testData testBranchB, data
-    describe 'treeAtPath', ->
+    */
+
+    return describe('commit deletes', function() {
+      return it('should delete data', function(done) {
+        var data;
+        data = {
+          'b/c': null,
+          'b/f/a': null,
+          'b/f/g': null,
+          'a': 1
+        };
+        return testBranchB.commit(data, function(err, head) {
+          return testData(testBranchB, data, done);
+        });
+      });
+    });
+    /*describe 'treeAtPath', ->
       it 'should read the root tree', ->
         tree = testBranchA.treeAtPath ''
         assert.ok tree.childData
