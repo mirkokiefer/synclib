@@ -64,12 +64,12 @@ commit = (treeHash, data, treeStore, cb) ->
         treeStore.write currentTree, cb
       else cb null
 
-readTreeAtPath = (treeHash, treeStore, path) ->
-  tree = treeStore.read treeHash
-  if path.length == 0 then tree
-  else
-    key = path.pop()
-    readTreeAtPath tree.childTrees[key], treeStore, path
+readTreeAtPath = (treeHash, treeStore, path, cb) ->
+  treeStore.read treeHash, (err, tree) ->
+    if path.length == 0 then cb null, tree
+    else
+      key = path.pop()
+      readTreeAtPath tree.childTrees[key], treeStore, path, cb
 
 read = (treeHash, treeStore, path, cb) ->
   if not treeHash then cb null
@@ -79,14 +79,14 @@ read = (treeHash, treeStore, path, cb) ->
       if path.length == 0 then cb null, tree.childData[key]
       else read tree.childTrees[key], treeStore, path, cb
 
-allPaths = (treeHash, treeStore) ->
-  tree = treeStore.read treeHash
-  paths = []
-  for key, childTree of tree.childTrees
-    childPaths = allPaths childTree, treeStore
-    res = (path: [key, path...], value:value  for {path, value} in childPaths)
-    paths = paths.concat res
-  paths.concat (path:[key], value:value for key, value of tree.childData)
+allPaths = (treeHash, treeStore, cb) ->
+  treeStore.read treeHash, (err, tree) ->
+    paths = (path:[key], value:value for key, value of tree.childData)
+    findChildPaths = (paths, [key, childTree], cb) ->
+      allPaths childTree, treeStore, (err, childPaths) ->
+        res = (path: [key, path...], value:value  for {path, value} in childPaths)
+        cb null, paths.concat res
+    async.reduce pairs(tree.childTrees), paths, findChildPaths, cb
 
 commitAncestors = (commitHash, commitStore, cb) ->
   commitStore.read commitHash, (err, commitObj) ->
@@ -227,18 +227,21 @@ class Repository
           ancestors = if oldCommitHash then [oldCommitHash] else []
           newCommit = new Commit ancestors: ancestors, tree: newTree
           obj._commitStore.write newCommit, cb
-  treeAtPath: (commitHash, path) ->
+  treeAtPath: (commitHash, path, cb) ->
+    obj = this
     path = if path == '' then [] else path.split('/').reverse()
-    {tree} = @_commitStore.read commitHash
-    readTreeAtPath tree, @_treeStore, path    
+    @_commitStore.read commitHash, (err, {tree}) ->
+      readTreeAtPath tree, obj._treeStore, path, cb
   dataAtPath: (commitHash, path, cb) ->
     obj = this
     path = path.split('/').reverse()
     @_commitStore.read commitHash, (err, {tree}) ->
       read tree, obj._treeStore, path, cb
-  allPaths: (commitHash) ->
-    {tree} = @_commitStore.read commitHash
-    path:path.join('/'), value:value for {path, value} in allPaths tree, @_treeStore
+  allPaths: (commitHash, cb) ->
+    obj = this
+    @_commitStore.read commitHash, (err, {tree}) ->
+      allPaths tree, obj._treeStore, (err, paths) ->
+        cb null, (path:path.join('/'), value:value for {path, value} in paths)
   commonCommit: (commit1, commit2, cb) -> findCommonCommit commit1, commit2, @_commitStore, cb
   commonCommitWithPaths: (commit1, commit2, cb) -> findCommonCommitWithPaths commit1, commit2, @_commitStore, cb
   diff: (commit1, commit2, cb) ->

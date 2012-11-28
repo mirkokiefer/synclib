@@ -422,7 +422,7 @@
         assertMerge testBranchC, expectedData, [oldHeadC, dataAHashes[2]]
     */
 
-    return describe('commit deletes', function() {
+    describe('commit deletes', function() {
       return it('should delete data', function(done) {
         var data;
         data = {
@@ -436,22 +436,33 @@
         });
       });
     });
-    /*describe 'treeAtPath', ->
-      it 'should read the root tree', ->
-        tree = testBranchA.treeAtPath ''
-        assert.ok tree.childData
-      it 'should read a child tree', ->
-        tree = testBranchA.treeAtPath 'b/f'
-        assert.equal tree.childData.g, dataA[1]['b/f/g']
-    describe 'paths', ->
-      it 'should return all tracked paths', ->
-        testBranch = repo.branch dataAHashes[0]
-        expectedPaths = keys dataA[0]
-        paths = pluck testBranch.allPaths(), 'path'
-        assert.equal difference(paths, expectedPaths).length, 0
-        assert.equal difference(expectedPaths, paths).length, 0
-    */
-
+    describe('treeAtPath', function() {
+      it('should read the root tree', function(done) {
+        return testBranchA.treeAtPath('', function(err, tree) {
+          assert.ok(tree.childData);
+          return done();
+        });
+      });
+      return it('should read a child tree', function(done) {
+        return testBranchA.treeAtPath('b/f', function(err, tree) {
+          assert.equal(tree.childData.g, dataA[1]['b/f/g']);
+          return done();
+        });
+      });
+    });
+    return describe('paths', function(done) {
+      return it('should return all tracked paths', function(done) {
+        var expectedPaths, testBranch;
+        testBranch = repo.branch(dataAHashes[0]);
+        expectedPaths = keys(dataA[0]);
+        return testBranch.allPaths(function(err, paths) {
+          paths = pluck(paths, 'path');
+          assert.equal(difference(paths, expectedPaths).length, 0);
+          assert.equal(difference(expectedPaths, paths).length, 0);
+          return done();
+        });
+      });
+    });
   });
 
 }).call(this);

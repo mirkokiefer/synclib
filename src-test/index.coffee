@@ -249,17 +249,21 @@ describe 'branch', () ->
       data = {'b/c': null, 'b/f/a': null, 'b/f/g': null, 'a': 1}
       testBranchB.commit data, (err, head) ->
         testData testBranchB, data, done
-  ###describe 'treeAtPath', ->
-    it 'should read the root tree', ->
-      tree = testBranchA.treeAtPath ''
-      assert.ok tree.childData
-    it 'should read a child tree', ->
-      tree = testBranchA.treeAtPath 'b/f'
-      assert.equal tree.childData.g, dataA[1]['b/f/g']
-  describe 'paths', ->
-    it 'should return all tracked paths', ->
+  describe 'treeAtPath', ->
+    it 'should read the root tree', (done) ->
+      testBranchA.treeAtPath '', (err, tree) ->
+        assert.ok tree.childData
+        done()
+    it 'should read a child tree', (done) ->
+      testBranchA.treeAtPath 'b/f', (err, tree) ->
+        assert.equal tree.childData.g, dataA[1]['b/f/g']
+        done()
+  describe 'paths', (done) ->
+    it 'should return all tracked paths', (done) ->
       testBranch = repo.branch dataAHashes[0]
       expectedPaths = keys dataA[0]
-      paths = pluck testBranch.allPaths(), 'path'
-      assert.equal difference(paths, expectedPaths).length, 0
-      assert.equal difference(expectedPaths, paths).length, 0
+      testBranch.allPaths (err, paths) ->
+        paths = pluck paths, 'path'
+        assert.equal difference(paths, expectedPaths).length, 0
+        assert.equal difference(expectedPaths, paths).length, 0
+        done()
