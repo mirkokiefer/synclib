@@ -249,9 +249,11 @@ class Repository
       read tree, obj._treeStore, path, cb
   allPaths: (commitHash, cb) ->
     obj = this
-    @_commitStore.read commitHash, (err, {tree}) ->
-      allPaths tree, obj._treeStore, (err, paths) ->
-        cb null, (path:path.join('/'), value:value for {path, value} in paths)
+    if commitHash
+      @_commitStore.read commitHash, (err, {tree}) ->
+        allPaths tree, obj._treeStore, (err, paths) ->
+          cb null, (path:path.join('/'), value:value for {path, value} in paths)
+    else cb null, []
   commonCommit: (commit1, commit2, cb) -> findCommonCommit commit1, commit2, @_commitStore, cb
   commonCommitWithPaths: (commit1, commit2, cb) -> findCommonCommitWithPaths commit1, commit2, @_commitStore, cb
   diff: (commit1, commit2, cb) ->
